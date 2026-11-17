@@ -1,0 +1,33 @@
+{
+  "intensity_at_1000_MeV": 5.866608513405972e-10,
+  "seed_index": 2.4,
+  "allsky_map_integral_sr": 12.692938914139583,
+  "reference_region": "All longitudes, |b|>10 deg; our explicit convention, not a recovered paper footprint",
+  "reference_solid_angle_sr": 10.384243257288439,
+  "reference_mean": 1.0,
+  "curve_max_MeV": 113250.4031141172,
+  "mask": {
+    "plane_abs_b_min": 30.0,
+    "pole_abs_dec_max": 90.0,
+    "bubbles_abs_l_max": 45.0,
+    "bubbles_abs_b_max": 90.0
+  },
+  "roi_assumption": "Galactic-centre aligned rectangle |l|<=20, |b|<=20; confirm if your nominal ROI has a different centre",
+  "intrinsic_flux_fractions": {
+    "S1": {
+      "isotropic_fit": 0.26891479791548845,
+      "GC_40x40": 0.0489933800459913,
+      "both": 0.0
+    },
+    "S2": {
+      "isotropic_fit": 0.23520004487346532,
+      "GC_40x40": 0.14533470955656855,
+      "both": 0.0
+    },
+    "combined": {
+      "isotropic_fit": 0.25685850794232923,
+      "GC_40x40": 0.0834447373948484,
+      "both": 0.0
+    }
+  }
+}

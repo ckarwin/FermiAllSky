@@ -1,0 +1,42 @@
+Version 3 validation — 2026-10-15
+
+test_analytic_poisson (__main__.Validation.test_analytic_poisson) ... ok
+test_asimov_recovery_and_profile (__main__.Validation.test_asimov_recovery_and_profile) ... ok
+test_boundary (__main__.Validation.test_boundary) ... ok
+test_cached_fit_and_intensity_export (__main__.Validation.test_cached_fit_and_intensity_export) ... ok
+test_degenerate_templates (__main__.Validation.test_degenerate_templates) ... ok
+test_independent_galprop_controls (__main__.Validation.test_independent_galprop_controls) ... ok
+test_invalid_model_support (__main__.Validation.test_invalid_model_support) ... ok
+test_joint_boundary (__main__.Validation.test_joint_boundary) ... ok
+test_joint_global_shape_and_derivatives (__main__.Validation.test_joint_global_shape_and_derivatives) ... ok
+test_low_energy_settings (__main__.Validation.test_low_energy_settings) ... ok
+test_mask (__main__.Validation.test_mask) ... ok
+test_masked_contamination (__main__.Validation.test_masked_contamination) ... ok
+test_poisson_injections (__main__.Validation.test_poisson_injections) ... ok
+test_reference_normalization_invariance (__main__.Validation.test_reference_normalization_invariance) ... ok
+test_residual_definitions (__main__.Validation.test_residual_definitions) ... ok
+test_seed_units (__main__.Validation.test_seed_units) ... ok
+
+----------------------------------------------------------------------
+Ran 16 tests in 3.963s
+
+OK
+
+Shared GALPROP normalizations: {np.str_('GP1'): np.float64(0.9999999969290767), np.str_('GP2'): np.float64(1.0000000092525254)}
+1.41 GeV: I=9.5598e-10
+2.83 GeV: I=3.0231e-10
+Results: /tmp/tmpem_zm9rk/fit_f20f9082df
+Shared GALPROP normalizations: {np.str_('GP1'): np.float64(1.0), np.str_('GP2'): np.float64(1.0)}
+1.41 GeV: I=9.5598e-10
+2.83 GeV: I=3.0231e-10
+Results: /tmp/tmpem_zm9rk/fit_6e1bb14f6e
+Plots written to /tmp/tmpem_zm9rk/fit_6e1bb14f6e
+Shared GALPROP normalizations: {np.str_('IC'): np.float64(0.800000004545454), np.str_('pi0'): np.float64(1.1999999841631133), np.str_('brem'): np.float64(1.35)}
+1.41 GeV: I=9.5598e-10
+2.83 GeV: I=2.4896e-10
+Results: /tmp/tmp4taoi_1g/fit_81b014a8ec
+
+Uploaded YAML matching: data files, emin/emax, time range, event class/type, filter, zmax, IRFs, binsperdec, logging all verified against supplied config.
+Required differences: full-sky HPX, separate output, edisp auto=-2, explicitly provided catalog/GALPROP paths.
+16 tests pass, including mixed fixed/free three-component recovery and reference-normalization invariance.
+Native LAT/Fermitools response generation remains UNTESTED here; requires user environment and files.

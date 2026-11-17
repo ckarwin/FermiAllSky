@@ -1,0 +1,19 @@
+1. Prepare the chunk list
+python -u generate_sun_moon_templates.py /project/ckarwin/astro/chris/annihilation_in_flight/build_analysis_pipeline/Run_19/ThreeML_Analysis/Isotropic/isotropic_fit/config.yaml --events /project/ckarwin/astro/chris/annihilation_in_flight/build_analysis_pipeline/Run_19/ThreeML_Analysis/Isotropic/isotropic_fit/output/fermipy/ft1_00.fits --ltcube /project/ckarwin/astro/chris/annihilation_in_flight/build_analysis_pipeline/Run_19/ThreeML_Analysis/Isotropic/isotropic_fit/output/fermipy/ltcube_00.fits --outdir solar_parallel --prepare-array
+
+This prepares the array instructions without calculating the chunks.
+
+2. Submit the parallel chunks:
+sbatch --array="$(cat solar_parallel/array_range.txt)" submit_solar_chunks.sbatch solar_parallel/array_plan.json
+
+This submits one task per Sun/Moon chunk, with a maximum concurrency of 1,000. The batch script includes your randomized startup delay and separate logs.
+
+Check its resource directives before submission: the example requests 4 hours and 64 GB per task. Memory usage has not been measured on your data; your MEGAlib script’s 3 GB should not be assumed sufficient.
+
+3. Once every array task finishes successfully, run the final stage
+
+Run this on a compute node or in your usual batch job:
+
+python -u generate_sun_moon_templates.py /project/ckarwin/astro/chris/annihilation_in_flight/build_analysis_pipeline/Run_19/ThreeML_Analysis/Isotropic/isotropic_fit/config.yaml --events /project/ckarwin/astro/chris/annihilation_in_flight/build_analysis_pipeline/Run_19/ThreeML_Analysis/Isotropic/isotropic_fit/output/fermipy/ft1_00.fits --ltcube /project/ckarwin/astro/chris/annihilation_in_flight/build_analysis_pipeline/Run_19/ThreeML_Analysis/Isotropic/isotropic_fit/output/fermipy/ltcube_00.fits --outdir solar_parallel --finalize-array
+
+It combines the chunks and generates sun_template.fits, moon_template.fits, and the diagnostic plots. It stops if required chunks are missing or failed.
