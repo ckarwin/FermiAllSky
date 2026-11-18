@@ -1,8 +1,8 @@
-"""Compare ROI-integrated bubble spectra with Ackermann et al. (2017).
+"""Compare the fitted Fermi-bubble spectra with Ackermann et al. (2017), Fig. 9a.
 
-Run: python compare_2017.py
+Run: python compare_bubbles.py
 Requires: numpy, pandas, matplotlib, astropy, healpy, pyyaml.
-Edit the two filenames below to compare a different fit.
+Edit the settings below to compare a different fit. See README.md.
 """
 from pathlib import Path
 
@@ -28,6 +28,13 @@ ROI_LON_LIMIT_DEG = 20
 ROI_LAT_LIMIT_DEG = 20
 LATITUDE_SPLIT_DEG = 10
 BAND_GEV = (1, 80)
+
+# The published bubble template is zero inside the masked cores of the 200
+# brightest 3FGL sources, and the published spectra exclude those holes. The
+# fitted spectra cover the whole ROI, so fill the holes (with the mean of the
+# unmasked template within this radius) when converting the paper to the ROI.
+FILL_SOURCE_HOLES = True
+HOLE_FILL_RADIUS_DEG = 2.0
 
 SCRIPT_DIR = Path(__file__).resolve().parent
 REFERENCE_DIR = SCRIPT_DIR / "reference"
@@ -62,17 +69,37 @@ def load_reference():
     with fits.open(REFERENCE_DIR / "exposure.fits") as hdus:
         exposure = hdus[1].data.field(0).copy()
         exposure_energy = hdus[2].data.field(0).copy() / 1000
-    return spectra, template, source_mask, lat, roi, exposure, exposure_energy
+    filled = fill_source_holes(template, source_mask) if FILL_SOURCE_HOLES else template
+    return spectra, template, filled, source_mask, lat, roi, exposure, exposure_energy
 
 
-def paper_roi_factors(energies, template, source_mask, latitude_mask,
+def fill_source_holes(template, source_mask):
+    """Replace the template in masked source holes by the local unmasked mean.
+
+    Each masked pixel gets the mean template value of the unmasked pixels
+    within HOLE_FILL_RADIUS_DEG. Pixels without unmasked neighbours keep 0.
+    """
+    nside = hp.npix2nside(len(template))
+    filled = template.copy()
+    radius = np.radians(HOLE_FILL_RADIUS_DEG)
+    for pixel in np.where(source_mask == 0)[0]:
+        neighbours = hp.query_disc(nside, hp.pix2vec(nside, pixel), radius)
+        neighbours = neighbours[source_mask[neighbours] > 0]
+        if len(neighbours):
+            filled[pixel] = template[neighbours].mean()
+    return filled
+
+
+def paper_roi_factors(energies, template, filled, source_mask, latitude_mask,
                       roi, exposure, exposure_energy):
     """Convert the paper's masked all-sky flux to the full rectangular ROI.
 
     Approximate intensity = released counts morphology / exposure.
-    Factor = sum(intensity in ROI) / sum(intensity over unmasked sky).
-    Both sums select the same latitude component. This model-based conversion
-    fills source holes in the ROI; it is not a PSF deconvolution.
+    Factor = sum(hole-filled intensity in ROI) / sum(intensity over unmasked sky).
+    The denominator matches the published spectra (whole sky, source cores
+    excluded); the numerator is the whole ROI, including the filled holes.
+    Both sums select the same latitude component. This is a model-based
+    aperture conversion, not a PSF deconvolution.
     """
     factors = []
     for energy in energies:
@@ -84,7 +111,8 @@ def paper_roi_factors(energies, template, source_mask, latitude_mask,
         at_energy = (exposure[:, index] * (1 - weight)
                      + exposure[:, index + 1] * weight)
         intensity = np.maximum(template, 0) / at_energy * latitude_mask
-        factors.append(intensity[roi].sum() / (intensity * source_mask).sum())
+        filled_intensity = np.maximum(filled, 0) / at_energy * latitude_mask
+        factors.append(filled_intensity[roi].sum() / (intensity * source_mask).sum())
     return np.array(factors)
 
 
@@ -105,7 +133,7 @@ def integrated_energy_flux(energy, sed):
 
 
 def main():
-    spectra, template, source_mask, lat, roi, exposure, exposure_energy = load_reference()
+    spectra, template, filled, source_mask, lat, roi, exposure, exposure_energy = load_reference()
     paper_energy = np.array(spectra["Energies"])
     components = [
         ("low", "Low lat bubbles", abs(lat) < LATITUDE_SPLIT_DEG,
@@ -120,7 +148,7 @@ def main():
 
     for ax, (tag, key, latitude_mask, filename, color) in zip(axes, components):
         # 1. Convert only the published spectrum to our ROI.
-        factors = paper_roi_factors(paper_energy, template, source_mask,
+        factors = paper_roi_factors(paper_energy, template, filled, source_mask,
                                     latitude_mask, roi, exposure, exposure_energy)
         paper_sed = np.array(spectra[key]) * factors
         paper_error = np.array(spectra[key + "_err"]) * factors

@@ -4,7 +4,8 @@ Scripts for plotting the analysis results:
 
 - **Inner-Galaxy fit** ([`Main/`](../Main/README.md)): count spectra, flux
   spectra and sky maps of the data, the model and the residuals, broken down by
-  model component.
+  model component, and a comparison of the fitted Fermi-bubble spectra with
+  published results.
 - **All-sky fit** ([`Isotropic/`](../Isotropic/README.md)): comparison of
   isotropic spectra from different runs with the official LAT isotropic
   template.
@@ -43,6 +44,12 @@ to plot.
 ## Scripts
 
 Run them from this folder.
+
+### `compare_bubbles/`: Fermi-bubble spectra vs. published results
+
+Compares the fitted low- and high-latitude bubble spectra (from the flux files
+made by `plot_flux.py`) with Ackermann et al. (2017), Figure 9a, converted to
+the same 40° × 40° region. See [`compare_bubbles/README.md`](compare_bubbles/README.md).
 
 ### `compare_isotropic.py`: isotropic spectra
 
@@ -103,6 +110,7 @@ with these tools (see the comment at the top of the script).
 
 | File | Purpose |
 |---|---|
+| `compare_bubbles/` | Fermi-bubble spectra vs. Ackermann et al. (2017) |
 | `compare_isotropic.py` | Isotropic spectra of several all-sky runs vs. the official template |
 | `make_counts_plot.py` | Count spectra by component, with residuals |
 | `plot_flux.py` | Flux (E² dN/dE) spectra by component, with residuals |
