@@ -55,10 +55,6 @@ galprop:
     free: false
     normalization: 1.0
 
-# Set to true only after checking that the mapcubes are differential intensity
-# in ph cm^-2 s^-1 sr^-1 MeV^-1 (not E^2 dN/dE, not unit-normalized maps).
-galprop_intensity_units_confirmed: true
-
 # If a GALPROP cube does not cover the energy range needed for energy
 # dispersion, extend it with per-pixel power laws (copies only; see README).
 galprop_extrapolation:
