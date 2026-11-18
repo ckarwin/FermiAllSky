@@ -9,6 +9,9 @@ import astropy.units as u
 import sys
 import pandas as pd
 import numpy as np
+HERE = Path(__file__).resolve().parent
+REPO = HERE.parent
+
 pd.set_option("display.float_format", "{:.6e}".format)
 
 # Need to specify ST version (fermipy workaround): 
@@ -118,13 +121,13 @@ if make_src_model:
     model.add_source(brem_source)
 
     # Save model:
-    model.save("fermi_src_model.yaml", overwrite=True)
+    model.save(str(HERE / "fermi_src_model.yaml"), overwrite=True)
 
     print("... finished making source model.")
 
 # Load saved model:
 if make_src_model == False:
-    model = load_model("fermi_src_model.yaml")
+    model = load_model(str(HERE / "fermi_src_model.yaml"))
 
 # Optional pi0 spectral tilt: I(E) = spatial K * (E/piv)**index * I_GALPROP(E).
 # Requires the accompanying FermipyLike.py. False preserves the original model.
@@ -159,7 +162,7 @@ if include_dm == True:
     # ------------------------------------------------------------
     # Generated using make_nfw_template.py.
     # gamma=1.0 is the standard NFW case in Ajello et al. (2016).
-    nfw_file = "DM_Model/nfw_gamma1.fits"
+    nfw_file = str(REPO / "DM_Model" / "nfw_gamma1.fits")
 
     dm_spatial = SpatialTemplate_2D(
         fits_file=nfw_file,
@@ -220,7 +223,7 @@ if include_bubbles == True:
     from pathlib import Path
     from astromodels import SpatialTemplate_2D, Powerlaw, Log_parabola, Cutoff_powerlaw, ExtendedSource
 
-    bubble_dir = Path("Bubbles_Model").resolve()
+    bubble_dir = REPO / "Bubbles_Model"
 
     def make_bubble_source(name, filename):
         template = bubble_dir / filename
@@ -291,12 +294,14 @@ if include_bubbles == True:
     model.add_source(bubbles_high)
 
 # Fixed Sun, Moon, and Loop I intensity mapcubes.
-# REPLACE each path and each 1.0 with the corresponding all-sky best-fit norm.
+# Update paths and amplitudes for your all-sky fit. For moved Loop I assets,
+# set this to the same directory as loopI.directory in the isotropic config.
+loopI_directory = REPO / "LoopI"
 fixed_templates = [
     ("Sun",    "/project/ckarwin/astro/chris/annihilation_in_flight/build_analysis_pipeline/Run_19/ThreeML_Analysis/Sun_and_Moon/solar_parallel/sun_template.fits",    1.052455442579017),  # EDIT path and norm
     ("Moon",   "/project/ckarwin/astro/chris/annihilation_in_flight/build_analysis_pipeline/Run_19/ThreeML_Analysis/Sun_and_Moon/solar_parallel/moon_template.fits",   1.0927249143495301),  # EDIT path and norm
-    ("Loop_I_S1", "/project/ckarwin/astro/chris/annihilation_in_flight/build_analysis_pipeline/Run_19/ThreeML_Analysis/Isotropic/isotropic_fit/LoopI/loopI_S1_empirical_mapcube.fits", 0.028642697745440024),  # EDIT path and norm
-    ("Loop_I_S2", "/project/ckarwin/astro/chris/annihilation_in_flight/build_analysis_pipeline/Run_19/ThreeML_Analysis/Isotropic/isotropic_fit/LoopI/loopI_S2_empirical_mapcube.fits", 0.21487439356080634)
+    ("Loop_I_S1", str(loopI_directory / "loopI_S1_empirical_mapcube.fits"), 0.028642697745440024),  # EDIT path and norm
+    ("Loop_I_S2", str(loopI_directory / "loopI_S2_empirical_mapcube.fits"), 0.21487439356080634)
     ]
 
 fixed_template_names = []
@@ -357,7 +362,7 @@ model.brem.GalpropMap.K.free=False
 print("3ML model before gta setup:")
 model.display()
 
-with open("config.yaml") as stream:
+with (HERE / "config.yaml").open() as stream:
     lat_config = yaml.safe_load(stream)
 
 # The fitted isotropic is an effective background: do not apply edisp again.
@@ -476,20 +481,20 @@ gta.write_model_map(f"pion_decay_{savename}", name="pion_decay")
 gta.write_model_map(f"ic_{savename}", name="ic")
 gta.write_model_map(f"brem_{savename}", name="brem")
 gta.write_model_map(f"isodiff_{savename}", name="isodiff")
-gta.write_model_map(f"GCE_NFW_{savename}", name="GCE_NFW")
-gta.write_model_map(f"bubbles_low_{savename}", name="bubbles_low")
-gta.write_model_map(f"bubbles_high_{savename}", name="bubbles_high")
-gta.write_model_map(f"Sun_{savename}", name="Sun")
-gta.write_model_map(f"Moon_{savename}", name="Moon")
-gta.write_model_map(f"Loop_I_SI_{savename}", name="Loop_I_S1")
-gta.write_model_map(f"Loop_I_S2_{savename}", name="Loop_I_S2")
-
+optional_diffuse_names = []
+if include_dm:
+    optional_diffuse_names.append("GCE_NFW")
+if include_bubbles:
+    optional_diffuse_names.extend(["bubbles_low", "bubbles_high"])
+for name in optional_diffuse_names:
+    gta.write_model_map(f"{name}_{savename}", name=name)
 
 for name in fixed_template_names:
     gta.write_model_map(f"{name}_{savename}", name=name)
 
 # Total model excluding diffuse components
-ps_map = gta.model_counts_map(exclude=["pion_decay", "ic", "brem", "isodiff", "GCE_NFW", "bubbles_low", "bubbles_high", "Sun", "Moon", "Loop_I_S1","Loop_I_S2"])
+ps_map = gta.model_counts_map(exclude=["pion_decay", "ic", "brem", "isodiff"]
+                             + optional_diffuse_names + fixed_template_names)
 ps_map.write(f"output/mcube_point_sources_{savename}.fits",overwrite=True)
 
 # Compare best-fit DM spectrum:
@@ -509,7 +514,7 @@ if include_dm == True:
 
     # ---- Settings: change only these lines as needed --------------------------
     fit_result = jl.results       # use jl.results if your fit object is jl
-    nfw_path = "DM_Model/nfw_gamma1.fits"
+    nfw_path = str(REPO / "DM_Model" / "nfw_gamma1.fits")
     # Common plotting region in GALACTIC coordinates, with NO plane mask.
     # Default: the paper's 15 x 15 degree region. For 40 x 40 use (-20,20,-20,20).
     comparison_roi = (-7.5, 7.5, -7.5, 7.5)  # lmin,lmax,bmin,bmax in degrees

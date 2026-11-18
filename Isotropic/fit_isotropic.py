@@ -24,7 +24,7 @@ import yaml
 from joint_fit import JointPoisson
 from galprop_padding import pad_mapcube, options as padding_options
 
-PIPELINE_VERSION = 5
+PIPELINE_VERSION = 6
 
 
 def diffuse_components(c):
@@ -187,9 +187,23 @@ def profile_iso(n, fixed, templates, best, minimum):
     return lo, upper(0.5), upper(1.352771727), max(0., 2. * d0)
 
 
+class UniqueKeyLoader(yaml.SafeLoader):
+    """Reject ambiguous configuration instead of silently taking the last key."""
+    def construct_mapping(self,node,deep=False):
+        seen=set()
+        for key_node,_ in node.value:
+            if key_node.tag=='tag:yaml.org,2002:merge': continue
+            key=self.construct_object(key_node,deep=deep)
+            if key in seen:
+                raise yaml.constructor.ConstructorError('while reading configuration',node.start_mark,
+                    f'duplicate key: {key}',key_node.start_mark)
+            seen.add(key)
+        return super().construct_mapping(node,deep=deep)
+
+
 def read_config(path):
     path = Path(path).resolve()
-    c = yaml.safe_load(path.read_text())
+    c = yaml.load(path.read_text(),Loader=UniqueKeyLoader)
     # Legacy switch is retired: reuse is always selective when reuse_from is set.
     c.pop('reuse_source_maps', None)
     for key in ['evfile', 'scfile', 'catalog', 'extdir', 'outdir']:
@@ -207,6 +221,9 @@ def read_config(path):
         require(np.isfinite(item['normalization']) and item['normalization']>=0,
                 'GALPROP normalization must be finite and nonnegative.')
         c['galprop'][name]=item
+    if c.get('loopI',{}).get('directory') is not None:
+        p=Path(os.path.expandvars(c['loopI']['directory'])).expanduser()
+        c['loopI']['directory']=str((path.parent/p).resolve())
     from loopI import configure
     configure(c)
     extra = c.setdefault('additional_diffuse', {})
@@ -253,6 +270,9 @@ def template_signature(c):
     d['cube_stamps'] = {name: {'size': Path(item['file']).stat().st_size,
                              'mtime_ns': Path(item['file']).stat().st_mtime_ns}
                         for name, item in diffuse_components(c).items() if Path(item['file']).is_file()}
+    from loopI import input_files
+    d['loopI_input_stamps']={str(p):{'size':p.stat().st_size,'mtime_ns':p.stat().st_mtime_ns}
+                            if p.is_file() else None for p in input_files(c)}
     d['pipeline_version'] = PIPELINE_VERSION
     return hashlib.sha256(json.dumps(d, sort_keys=True).encode()).hexdigest()
 
@@ -446,7 +466,7 @@ def fit(c):
     with np.load(out/'templates.npz',allow_pickle=False) as z:
         meta=json.loads(str(z['metadata']))
         require(meta['signature']==template_signature(c),
-                'Preparation changed or cache is v1. Use a NEW outdir and prepare again.')
+                'Preparation inputs or pipeline version changed. Use a NEW outdir and prepare again.')
         keep=sky_mask(z['l'],z['b'],z['dec'],c['mask'])
         require(np.any(keep),'Mask excludes every pixel.')
         results=result_dir(c)

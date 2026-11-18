@@ -2,7 +2,7 @@
 import json
 import numpy as np
 def check_seed(path,s):
-    """Require the separable power-law cube supplied by make_loopI.py."""
+    """Require the separable power-law cube supplied by LoopI/build_templates.py."""
     from astropy.io import fits
     from astropy.wcs import WCS
     with fits.open(path,memmap=True) as h:
