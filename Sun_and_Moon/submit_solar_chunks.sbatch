@@ -1,4 +1,8 @@
 #!/bin/bash
+# Slurm array job: each task computes one Sun or Moon livetime chunk.
+# Usage (after generate_sun_moon_templates.py --prepare-array; see README.md):
+#     mkdir -p palmetto_logs
+#     sbatch --array="$(cat solar_parallel/array_range.txt)" submit_solar_chunks.sbatch solar_parallel/array_plan.json
 #SBATCH --time=04:00:00
 #SBATCH --output=palmetto_logs/solar.%A_%a.out
 #SBATCH --error=palmetto_logs/solar.%A_%a.err
