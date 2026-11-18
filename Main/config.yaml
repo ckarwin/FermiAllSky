@@ -1,31 +1,44 @@
+# Fermipy configuration for the inner-Galaxy fit (read by run_3ML_master.py).
+# The source model is NOT defined here: it comes from the 3ML model built in
+# run_3ML_master.py. Keep the data selection and IRFs identical to the all-sky
+# fit (Isotropic/config.yaml), so that the isotropic spectrum applies.
+
 binning:
   binsperdec: 8
-  binsz: 0.2
-  roiwidth: 40.0
+  binsz: 0.2            # pixel size [deg]
+  roiwidth: 40.0        # 40 x 40 deg region
   coordsys: GAL
+
 data:
   evfile: "/project/ckarwin/astro/data/fermi-lat/weekly/photon/filelist.txt"
   scfile: "/project/ckarwin/astro/data/fermi-lat/mission/spacecraft/lat_spacecraft_merged.fits"
+
 logging:
   chatter: 0
   verbosity: 1
+
 selection:
-  ra: 266.4051
+  ra: 266.4051          # Galactic centre (l = 0, b = 0)
   dec: -28.936175
   glon: 0
   glat: 0
-  emax: 100000
-  emin: 300
-  evclass: 128
-  evtype: 3
+  emax: 100000          # MeV
+  emin: 300             # MeV
+  evclass: 128          # SOURCE
+  evtype: 3             # FRONT + BACK
   filter: DATA_QUAL>0 && LAT_CONFIG==1
-  tmin: 239557417
-  tmax: 780439551
-  zmax: 90
+  tmin: 239557417       # MET [s]
+  tmax: 780439551       # MET [s]
+  zmax: 90              # zenith-angle cut [deg]
+
 gtlike:
   edisp : True
+  # Extra energy bins for energy dispersion. The all-sky fit uses -2 (see the
+  # Isotropic README); -1 is kept here to reproduce the existing results.
   edisp_bins: -1
   irfs : 'P8R3_SOURCE_V3'
-  edisp_disable : ['isodiff']
+  edisp_disable : ['isodiff']   # the all-sky isotropic is an effective background
+
 fileio:
+  # Overridden by fermipy_outdir in run_3ML_master.py.
   outdir : "/project/ckarwin/astro/chris/annihilation_in_flight/build_analysis_pipeline/Run_11/ThreeML_Analysis"

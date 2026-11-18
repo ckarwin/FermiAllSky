@@ -12,7 +12,7 @@ guide:
 | 1 | [`Sun_and_Moon/`](Sun_and_Moon/README.md) | Full-sky Sun and Moon templates for the exact event selection | `sun_template.fits`, `moon_template.fits` |
 | 2 | [`LoopI/`](LoopI/README.md) | Loop I foreground templates (Wolleben shells S1 and S2) | `loopI_*_mapcube.fits` |
 | 3 | [`Isotropic/`](Isotropic/README.md) | Masked all-sky fit: measures the isotropic spectrum and fits the GALPROP, Sun, Moon and Loop I normalizations | `isotropic_spectrum.txt`, `diffuse_normalizations.json` |
-| 4 | [`Main/`](Main/) | Inner-Galaxy (40° × 40°) 3ML fit using the all-sky results as fixed backgrounds, with Fermi bubbles and a Galactic-centre excess component | fit results |
+| 4 | [`Main/`](Main/README.md) | Inner-Galaxy (40° × 40°) 3ML fit using the all-sky results as fixed backgrounds, with Fermi bubbles and a Galactic-centre excess component | fitted parameters, model maps, GCE comparison plot |
 
 Supporting folders:
 
@@ -45,16 +45,22 @@ python LoopI/build_templates.py --config Isotropic/config.yaml
 cd Isotropic
 python fit_isotropic.py run config.yaml
 
-# 4. Inner-Galaxy fit: set the isotropic spectrum path and the fitted
-#    Sun/Moon/Loop I normalizations in Main/run_3ML_master.py, then run it.
+# 4. Inner-Galaxy fit: in the USER SETTINGS of Main/run_3ML_master.py, set the
+#    isotropic spectrum path and the fitted Sun/Moon/Loop I normalizations
+#    (from diffuse_normalizations.json), then run it.
+cd ../Main
+sbatch slurm.sh
 ```
 
 ## Software
 
 - Fermipy and Fermitools (with the LAT IRFs and CALDB) for every step that
   touches LAT data.
-- 3ML and astromodels for `Main/` (the analysis uses custom `FermipyLike` and
-  `GalpropMap` extensions installed in the analysis environment).
+- For `Main/` and the joint fits: the `diffuse-analysis` branches of
+  [threeML](https://github.com/ckarwin/threeML/tree/diffuse-analysis) and
+  [astromodels](https://github.com/ckarwin/astromodels/tree/diffuse-analysis),
+  which provide the `FermipyLike` options and the `GalpropMap` mapcube source
+  used there. Everything else uses only Fermipy/Fermitools.
 - NumPy, SciPy, Astropy, Matplotlib and PyYAML for the utilities; pytest for the
   tests.
 
