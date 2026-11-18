@@ -50,7 +50,7 @@ sys.exit()
 #instance_plots.calculate_flux(f'../output/mcube_Moon_{savename}.fits','../output/bexpmap_00.fits',"moon",filetype="fermipy_mcube")
 
 # Loop I S1:
-#instance_plots.calculate_flux(f'../output/mcube_Loop_I_SI_{savename}.fits','../output/bexpmap_00.fits',"loopI_SI",filetype="fermipy_mcube")
+#instance_plots.calculate_flux(f'../output/mcube_Loop_I_S1_{savename}.fits','../output/bexpmap_00.fits',"loopI_SI",filetype="fermipy_mcube")
 
 # Loop I S2:
 #instance_plots.calculate_flux(f'../output/mcube_Loop_I_S2_{savename}.fits','../output/bexpmap_00.fits',"loopI_S2",filetype="fermipy_mcube")

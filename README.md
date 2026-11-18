@@ -94,7 +94,7 @@ point the analysis at it:
   [astromodels](https://github.com/ckarwin/astromodels/tree/diffuse-analysis),
   which provide the `FermipyLike` options and the `GalpropMap` mapcube source
   used there. Everything else uses only Fermipy/Fermitools.
-- For `Plots/`: the `lat_binned_analysis` module.
+- For `Plots/`: [`lat_binned_analysis`](https://github.com/ckarwin/Fermi-LAT_Binned_Analysis).
 - NumPy, SciPy, Astropy, Matplotlib and PyYAML for the utilities; pytest for the
   tests.
 

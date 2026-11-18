@@ -7,9 +7,15 @@ residuals, broken down by model component.
 ## Requirements
 
 - Fermipy and Fermitools (for `plot_flux.py`).
-- The `lat_binned_analysis` module (classes `Analysis`, `Plots` and
-  `pyLikelihood`), which must be importable. Used by `plot_flux.py`,
-  `plot_spatial.py` and `custom_client.py`.
+- [`lat_binned_analysis`](https://github.com/ckarwin/Fermi-LAT_Binned_Analysis),
+  used by `plot_flux.py`, `plot_spatial.py` and `custom_client.py`. Install it
+  in the Fermitools environment:
+
+  ```bash
+  git clone https://github.com/ckarwin/Fermi-LAT_Binned_Analysis.git
+  cd Fermi-LAT_Binned_Analysis
+  pip install -e .
+  ```
 - NumPy, Matplotlib, Astropy and pandas.
 
 ## Inputs
@@ -72,11 +78,11 @@ with these tools (see the comment at the top of the script).
 
 ## Notes
 
-- The Loop I S1 files are read as `mcube_Loop_I_SI_...` (with the letter I).
-  The inner-Galaxy fit currently names that source `Loop_I_S1` (with the digit
-  1), so the file is `mcube_Loop_I_S1_...`; adjust the name if needed.
 - Each script sets its own `savename`; `plot_spatial.py` currently uses a
   different one from the other two.
+- The component file names follow the source names of the inner-Galaxy fit
+  (for example `Loop_I_S1`). If you rename or add sources there, update the
+  scripts to match.
 
 ## Files in this folder
 
