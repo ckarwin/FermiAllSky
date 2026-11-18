@@ -4,33 +4,46 @@ Fermi-LAT all-sky and inner-Galaxy analysis of Galactic diffuse gamma-ray
 emission, built for a joint analysis with INTEGRAL/SPI (and later COSI) that
 searches for positron annihilation in flight.
 
-The analysis is done in stages. Each folder handles one stage and has its own
-guide:
+The repository has two kinds of folders. The **model folders** hold
+templates for individual emission components, together with the scripts that
+make them. They are built once and then reused, and new models can be added
+to them at any time. The **analysis folders** run the fits that use those
+templates. Each folder has its own guide:
 
-| Step | Folder | What it does | Main output |
+| Folder | Type | What it contains / does | Main products |
 |---|---|---|---|
-| 1 | [`Sun_and_Moon/`](Sun_and_Moon/README.md) | Full-sky Sun and Moon templates for the exact event selection | `sun_template.fits`, `moon_template.fits` |
-| 2 | [`LoopI/`](LoopI/README.md) | Loop I foreground templates (Wolleben shells S1 and S2) | `loopI_*_mapcube.fits` |
-| 3 | [`Isotropic/`](Isotropic/README.md) | Masked all-sky fit: measures the isotropic spectrum and fits the GALPROP, Sun, Moon and Loop I normalizations | `isotropic_spectrum.txt`, `diffuse_normalizations.json` |
-| 4 | [`Main/`](Main/README.md) | Inner-Galaxy (40° × 40°) 3ML fit using the all-sky results as fixed backgrounds, with Fermi bubbles and a Galactic-centre excess component | fitted parameters, model maps, GCE comparison plot |
+| [`Sun_and_Moon/`](Sun_and_Moon/README.md) | Model | Full-sky Sun and Moon templates, made for the exact event selection of the analysis | `sun_template.fits`, `moon_template.fits` |
+| [`LoopI/`](LoopI/README.md) | Model | Loop I foreground templates (Wolleben shells S1 and S2) | `loopI_*_mapcube.fits` |
+| [`DM_Model/`](DM_Model/README.md) | Model | NFW (dark-matter-like) spatial templates for the Galactic-centre excess | `nfw_gamma*.fits` |
+| [`Bubbles_Model/`](Bubbles_Model/README.md) | Model | Low- and high-latitude Fermi-bubble spatial templates | `bubbles_*.fits` |
+| [`Isotropic/`](Isotropic/README.md) | Analysis | Masked all-sky fit with GALPROP diffuse emission, 4FGL catalog sources, Sun, Moon and Loop I: measures the isotropic spectrum and the diffuse and foreground normalizations | `isotropic_spectrum.txt`, `diffuse_normalizations.json` |
+| [`Main/`](Main/README.md) | Analysis | Inner-Galaxy (40° × 40°) 3ML fit with GALPROP diffuse emission and 4FGL catalog sources, the all-sky results as fixed backgrounds, and optional Galactic-centre excess and Fermi bubbles | fitted parameters, model maps, GCE comparison plot |
+| [`tests/`](tests/) | — | Regression tests (`python -m pytest -q tests`) | — |
 
-Supporting folders:
+How they connect:
 
-| Folder | Contents |
-|---|---|
-| [`DM_Model/`](DM_Model/README.md) | NFW spatial templates for the Galactic-centre excess, and the script that makes them |
-| [`Bubbles_Model/`](Bubbles_Model/README.md) | Low- and high-latitude Fermi-bubble spatial templates |
-| [`tests/`](tests/) | Regression tests (`python -m pytest -q tests`) |
+1. **Build the models** you need. The NFW and bubble templates are already in
+   the repository; the Loop I templates are built once with one command; the
+   Sun and Moon templates are made from the event selection of the all-sky fit.
+2. **Run the all-sky fit** (`Isotropic/`). Its model contains the GALPROP
+   diffuse emission, the 4FGL catalog sources (held at their catalog values),
+   and the Sun, Moon and Loop I models. It measures the isotropic background
+   and the diffuse and foreground normalizations.
+3. **Run the inner-Galaxy fit** (`Main/`). Its model contains the GALPROP
+   diffuse emission and the 4FGL catalog sources, the all-sky results held
+   fixed, and the GCE and bubble models.
 
 ## Typical workflow
 
 ```bash
-# Step 3 needs Sun/Moon templates made from its own event selection, and step 1
-# needs that selection. On a first pass you can prepare the isotropic analysis
-# without Sun/Moon, make the templates from <outdir>/fermipy/ft1_00.fits, and
-# then prepare again with them (reuse_from saves the expensive products).
+# --- 1. Build the models ------------------------------------------------------
+# Loop I (once; the large FITS files are not stored in git):
+python LoopI/build_templates.py --config Isotropic/config.yaml
 
-# 1. Sun and Moon templates (Slurm array; see Sun_and_Moon/README.md)
+# Sun and Moon (Slurm array; see Sun_and_Moon/README.md). They need the event
+# file selected by the all-sky preparation, so on a first pass prepare the
+# all-sky fit without Sun/Moon, make the templates, then prepare again with
+# them (reuse_from avoids repeating the expensive steps).
 cd Sun_and_Moon
 python -u generate_sun_moon_templates.py ../Isotropic/config.yaml \
     --events <outdir>/fermipy/ft1_00.fits --ltcube <outdir>/fermipy/ltcube_00.fits \
@@ -38,19 +51,30 @@ python -u generate_sun_moon_templates.py ../Isotropic/config.yaml \
 # ... submit the array, then run again with --finalize-array
 cd ..
 
-# 2. Loop I templates (once per checkout)
-python LoopI/build_templates.py --config Isotropic/config.yaml
+# NFW and bubble templates: already provided (DM_Model/, Bubbles_Model/).
 
-# 3. All-sky isotropic fit
+# --- 2. All-sky fit ----------------------------------------------------------
 cd Isotropic
 python fit_isotropic.py run config.yaml
 
-# 4. Inner-Galaxy fit: in the USER SETTINGS of Main/run_3ML_master.py, set the
-#    isotropic spectrum path and the fitted Sun/Moon/Loop I normalizations
-#    (from diffuse_normalizations.json), then run it.
+# --- 3. Inner-Galaxy fit -----------------------------------------------------
+# In the USER SETTINGS of Main/run_3ML_master.py, set the isotropic spectrum
+# and the fitted Sun/Moon/Loop I normalizations (diffuse_normalizations.json).
 cd ../Main
 sbatch slurm.sh
 ```
+
+## Adding a new model
+
+Put the new template (and the script that makes it) in the matching model
+folder, or in a new folder, and document it in that folder's README. Then
+point the analysis at it:
+
+- **All-sky fit:** add a 3D intensity mapcube under `additional_diffuse` in
+  `Isotropic/config.yaml` (see the [isotropic guide](Isotropic/README.md#additional-diffuse-components-sun-moon-others)).
+- **Inner-Galaxy fit:** change the template path in the USER SETTINGS of
+  `Main/run_3ML_master.py`, or add a source there (see
+  [Changing the model](Main/README.md#changing-the-model)).
 
 ## Software
 
