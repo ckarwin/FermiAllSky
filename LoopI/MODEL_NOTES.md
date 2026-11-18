@@ -1,4 +1,4 @@
-# Loop I input model
+# Loop I model notes
 
 This is a nominal foreground model, not a new measurement or an exact reproduction of the published spatial analysis.
 
@@ -22,7 +22,7 @@ C is the solid-angle-weighted mean of L_S1+L_S2 over **all longitudes with |b|>1
 
 ## Mask overlap
 
-The plot uses the mask in the uploaded config: |b|>=30 degrees and excludes |wrapped l|<=45 degrees at all latitudes. The 40x40 rectangle is explicitly **assumed centred on the Galactic centre**, since the uploaded all-sky code contains no nominal ROI centre. If it is M31-centred or elsewhere, this overlay is not that ROI.
+The plot uses the mask in Isotropic/config.yaml: |b|>=30 degrees and excludes |wrapped l|<=45 degrees at all latitudes. The 40x40 rectangle is **assumed centred on the Galactic centre** (the inner-Galaxy ROI); the all-sky code itself defines no ROI centre.
 
 Intrinsic flux fractions (not exposure/PSF-folded count fractions):
 
@@ -37,4 +37,4 @@ The assumed GC rectangle is entirely excluded from the isotropic fit, but Loop I
 
 ## Separate-shell extension
 
-`loopI.mode: separate` replaces the combined source with two sources sharing the same spectral shape and common spatial normalization. Independent amplitudes multiply L_S1 and L_S2; unit amplitudes recover the combined model. Their ratio is fitted rather than inferred from a published gamma-ray shell ratio. This extends the combined geometric prescription; the main LAT studies checked here did not supply individual shell spectra. See [the isotropic guide](../Isotropic/README.md#loop-i-directory-and-model-options) for configuration, template generation, and fitting restrictions.
+`loopI.mode: separate` replaces the combined source with two sources sharing the same spectral shape and common spatial normalization. Independent amplitudes multiply L_S1 and L_S2; unit amplitudes recover the combined model. Their ratio is fitted rather than inferred from a published gamma-ray shell ratio. This extends the combined geometric prescription; the main LAT studies checked here did not supply individual shell spectra. See [the isotropic guide](../Isotropic/README.md#loop-i) for configuration, template generation, and fitting restrictions.

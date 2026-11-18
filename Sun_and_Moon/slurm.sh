@@ -1,11 +1,15 @@
 #!/bin/bash
+# Final step of the Sun/Moon template production (see README.md):
+# sums the completed gtltcubesun array chunks and writes sun_template.fits and
+# moon_template.fits. Submit only after every array task has finished:
+#     sbatch slurm.sh
 #SBATCH --time=72:00:00
 #SBATCH -o output.%j
 #SBATCH -e error.%j
 #SBATCH --job-name=Run_19
 #SBATCH --mem=220gb
 
-#The fermi environment first needs to be sourced:
+# Activate the Fermitools environment:
 source /project/ckarwin/astro/chris/my_envs/joint_analysis_main.sh
 
 cd $SLURM_SUBMIT_DIR

@@ -1,9 +1,46 @@
-# This is the wrapper's config, not raw Fermipy YAML.
-evfile: /project/ckarwin/astro/data/fermi-lat/weekly/photon/filelist.txt
-scfile: /project/ckarwin/astro/data/fermi-lat/mission/spacecraft/lat_spacecraft_merged.fits
-catalog: /project/ckarwin/astro/chris/my_envs/joint_analysis_main/lib/python3.11/site-packages/fermipy/data/catalogs/gll_psc_v35.fit
-extdir: /project/ckarwin/astro/chris/my_envs/fermipy/lib/python3.9/site-packages/fermipy/data/catalogs/Extended_14years/Templates/
+# =============================================================================
+# Configuration for fit_isotropic.py (the wrapper config, not a raw Fermipy YAML)
+#
+# Relative paths are resolved from the folder containing THIS file.
+# Absolute paths, ~ and $ENVIRONMENT_VARIABLES also work.
+# See README.md for a description of every option.
+# =============================================================================
 
+# -----------------------------------------------------------------------------
+# 1. LAT data and source catalog
+# -----------------------------------------------------------------------------
+evfile: /project/ckarwin/astro/data/fermi-lat/weekly/photon/filelist.txt          # FT1 file or text list of FT1 files
+scfile: /project/ckarwin/astro/data/fermi-lat/mission/spacecraft/lat_spacecraft_merged.fits  # FT2 spacecraft file
+catalog: /project/ckarwin/astro/chris/my_envs/joint_analysis_main/lib/python3.11/site-packages/fermipy/data/catalogs/gll_psc_v35.fit  # 4FGL-DR4
+extdir: /project/ckarwin/astro/chris/my_envs/fermipy/lib/python3.9/site-packages/fermipy/data/catalogs/Extended_14years/Templates/  # extended-source templates
+
+# -----------------------------------------------------------------------------
+# 2. Event selection, binning and instrument response
+# -----------------------------------------------------------------------------
+evclass: 128                 # SOURCE
+evtype: 3                    # FRONT + BACK
+irfs: P8R3_SOURCE_V3
+tmin: 239557417              # MET [s]
+tmax: 780439551              # MET [s]
+emin: 300.0                  # MeV. 20 MeV is possible if your data/IRFs support it.
+emax: 100000.0               # MeV
+binsperdec: 8                # energy bins per decade
+binsz: 0.2                   # Bookkeeping only; the HEALPix resolution is set by hpx_order.
+hpx_order: 8                 # NSIDE = 2**8 = 256, pixel size ~0.229 deg
+zmax: 90.0                   # zenith-angle cut [deg]
+filter: DATA_QUAL>0 && LAT_CONFIG==1
+# Extra true-energy bins for energy dispersion. "auto" gives -2 for this setup
+# (and +4 if emin < 100 MeV). Allowed explicit values: -3, -2, 2, 3, 4.
+edisp_bins: auto
+logging:
+  chatter: 0
+  verbosity: 1
+
+# -----------------------------------------------------------------------------
+# 3. Galactic diffuse emission (GALPROP mapcubes)
+#    Each FREE component gets ONE normalization shared by ALL energies.
+#    normalization = fixed multiplier if free: false, starting value if free: true.
+# -----------------------------------------------------------------------------
 galprop:
   IC:
     file: /project/ckarwin/astro/chris/annihilation_in_flight/GALPROP_Sims/Run_9_test2/results/ics_anisotropic_mapcube_57_SA100_F98_example
@@ -17,58 +54,26 @@ galprop:
     file: /project/ckarwin/astro/chris/annihilation_in_flight/GALPROP_Sims/Run_9_test2/results/bremss_mapcube_57_SA100_F98_example
     free: false
     normalization: 1.0
-# Each FREE component gets ONE normalization across ALL energies.
-# normalization is the fixed value when free:false, or initial value when free:true.
 
-# No external isotropic spectrum required. The code makes this reference internally.
-# Its normalization is arbitrary; every isotropic bin has a freely fitted amplitude.
-# index is the assumed shape WITHIN each energy bin, not a globally fitted spectrum.
-isotropic:
-  mode: powerlaw
-  index: -2.0
-  pivot_MeV: 1000.0
-  intensity_at_pivot: 1.0e-10  # ph cm^-2 s^-1 sr^-1 MeV^-1
-# Optional alternative: isotropic: {mode: file, file: /path/to/reference.txt}
-allow_seed_extrapolation: false
+# Set to true only after checking that the mapcubes are differential intensity
+# in ph cm^-2 s^-1 sr^-1 MeV^-1 (not E^2 dN/dE, not unit-normalized maps).
+galprop_intensity_units_confirmed: true
 
-evclass: 128
-evtype: 3
-irfs: P8R3_SOURCE_V3
-tmin: 239557417
-tmax: 780439551
-emin: 300.0             # Set 20.0 if desired; input data/IRFs must support it.
-emax: 100000.0
-binsperdec: 8
-binsz: 0.2             # Preserved bookkeeping value; HPX resolution is set below.
-hpx_order: 8           # NSIDE=256, characteristic pixel scale ~0.229 deg.
-zmax: 90.0
-filter: DATA_QUAL>0 && LAT_CONFIG==1
-logging:
-  chatter: 0
-  verbosity: 1
-# auto resolves to -2 here (your original used -1); at 20 MeV it selects +4.
-edisp_bins: auto
-# Verify differential-intensity units, not E^2*dN/dE or unit-normalized maps. Should be ph/cm2/s/sr/MeV 
-galprop_intensity_units_confirmed: true  
-mask:
-  plane_abs_b_min: 30.0
-  pole_abs_dec_max: 90.0
-  bubbles_abs_l_max: 45.0
-  bubbles_abs_b_max: 90.0
-
-# used for energy dispersion if model doesn't cover needed energy range: 
+# If a GALPROP cube does not cover the energy range needed for energy
+# dispersion, extend it with per-pixel power laws (copies only; see README).
 galprop_extrapolation:
-  high: true
-  low: false
-  fit_points: 3
-  index_min: -6.0
+  high: true                 # allow extension above the cube's last energy
+  low: false                 # allow extension below the cube's first energy
+  fit_points: 3              # boundary planes used to fit each pixel's slope
+  index_min: -6.0            # clip fitted exponents (dN/dE ~ E**index) to this range
   index_max: 2.0
-  index_shift: 0.0
-  max_factor: 3.0
-plots:
-  bands_MeV: [[300, 1000], [1000, 10000], [10000, 100000], [100000, 800000]]
-  map_nlon: 720
+  index_shift: 0.0           # add to every fitted exponent (for systematics tests)
+  max_factor: 3.0            # never extrapolate by more than this factor in energy
 
+# -----------------------------------------------------------------------------
+# 4. Additional diffuse components (3D intensity mapcubes, same rules as GALPROP)
+#    These must already cover the energy-dispersion margins; they are not padded.
+# -----------------------------------------------------------------------------
 additional_diffuse:
   Sun:
     file: /project/ckarwin/astro/chris/annihilation_in_flight/build_analysis_pipeline/Run_19/ThreeML_Analysis/Sun_and_Moon/solar_parallel/sun_template.fits
@@ -79,31 +84,69 @@ additional_diffuse:
     free: true
     normalization: 1.0
 
-# Paths are relative to THIS YAML; use a new outdir for each preparation.
-outdir: output_with_solar_and_loopI_separate
-reuse_from: output_with_solar_and_loopI  # Omit or set null for the first preparation.
-
-# Separate Wolleben S1/S2 components: shared spectrum, independent amplitudes.
+# -----------------------------------------------------------------------------
+# 5. Loop I (Wolleben S1 + S2 shells). Do NOT also list LoopI* sources above.
+# -----------------------------------------------------------------------------
 loopI:
   enabled: true
-  mode: separate
-  # directory: ../LoopI     # Optional; default is repository-level LoopI/.
-  spectrum: empirical       # empirical | powerlaw | cutoff_powerlaw | logparabola
-  free_norm: true          # separate: one free norm PER SHELL; combined: one shared norm
-  normalization: 0.14        # fixed multiplier, or starting value if free_norm=true
-# Analytic choices use parameters, e.g.:
-#  spectrum: cutoff_powerlaw
-#  parameters:
-#    index: {value: 2.4, free: true, min: 0.5, max: 5.0}
-#    cutoff_MeV: {value: 30000, free: true, min: 1000, max: 10000000}
-# For powerlaw: index only. For logparabola: alpha and beta.
-#    alpha: {value: 2.4, free: true, min: 0.5, max: 5.0}
-#    beta: {value: 0.1, free: true, min: 0.0, max: 1.0}
+  mode: separate             # combined: one source LoopI | separate: LoopI_S1 + LoopI_S2
+  # directory: ../LoopI      # Optional; default is the repository-level LoopI/ folder.
+  spectrum: empirical        # empirical | powerlaw | cutoff_powerlaw | logparabola
+  free_norm: true            # separate: one free amplitude PER SHELL; combined: one amplitude
+  normalization: 0.14        # fixed multiplier, or starting value if free_norm: true
+  # Optional per-shell overrides (mode: separate only):
+  # shells:
+  #   S1: {free_norm: true, normalization: 1.0}
+  #   S2: {free_norm: true, normalization: 1.0}
+  # Analytic spectra take a parameters block (shape is shared by S1 and S2), e.g.:
+  # spectrum: cutoff_powerlaw
+  # parameters:
+  #   index: {value: 2.4, free: true, min: 0.5, max: 5.0}
+  #   cutoff_MeV: {value: 30000, free: true, min: 1000, max: 10000000}
+  # powerlaw takes index only; logparabola takes alpha and beta, e.g.
+  #   alpha: {value: 2.4, free: true, min: 0.5, max: 5.0}
+  #   beta: {value: 0.1, free: true, min: 0.0, max: 1.0}
+
+# -----------------------------------------------------------------------------
+# 6. Isotropic reference spectrum
+#    Built internally. Its normalization is arbitrary because every energy bin
+#    has its own free amplitude; index only sets the shape WITHIN each bin.
+# -----------------------------------------------------------------------------
+isotropic:
+  mode: powerlaw
+  index: -2.0
+  pivot_MeV: 1000.0
+  intensity_at_pivot: 1.0e-10  # ph cm^-2 s^-1 sr^-1 MeV^-1
+# Alternative: isotropic: {mode: file, file: /path/to/reference.txt}
+allow_seed_extrapolation: false  # file mode only: extend a too-short table with power laws
+
+# -----------------------------------------------------------------------------
+# 7. Sky mask (pixels KEPT in the likelihood). Can be changed without re-preparing.
+#    Keep |b| >= plane_abs_b_min and |dec| <= pole_abs_dec_max, and remove
+#    |l| <= bubbles_abs_l_max AND |b| <= bubbles_abs_b_max.
+# -----------------------------------------------------------------------------
+mask:
+  plane_abs_b_min: 30.0
+  pole_abs_dec_max: 90.0     # 90 = no celestial-pole cut
+  bubbles_abs_l_max: 45.0
+  bubbles_abs_b_max: 90.0
+
+# -----------------------------------------------------------------------------
+# 8. Fit and plot options
+# -----------------------------------------------------------------------------
+# true: profile-likelihood 68% intervals, 95% upper limits and TS for every
+# isotropic bin and free normalization (slower). Not available when an analytic
+# Loop I shape is free.
 compute_profiles: false
-# To fit independent S1/S2 amplitudes with the SAME empirical shape:
-# use mode: separate and free_norm: true (as configured above).
-# Optional independent controls inside loopI (requires mode: separate)
-#  shells:
-#    S1: {free_norm: true, normalization: 1.0}
-#    S2: {free_norm: true, normalization: 1.0}
-# Analytic shape parameters remain tied between shells in separate mode.
+plots:
+  bands_MeV: [[300, 1000], [1000, 10000], [10000, 100000], [100000, 800000]]  # residual-map bands
+  map_nlon: 720              # longitude cells of the residual-map display grid
+
+# -----------------------------------------------------------------------------
+# 9. Output
+#    outdir     : destination of this run (use a NEW outdir for each preparation)
+#    reuse_from : optional older output root to copy compatible products from.
+#                 Omit or set to null for a first preparation.
+# -----------------------------------------------------------------------------
+outdir: output_with_solar_and_loopI_separate
+reuse_from: output_with_solar_and_loopI
