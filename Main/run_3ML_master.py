@@ -61,9 +61,9 @@ pi0_file = "/project/ckarwin/astro/chris/annihilation_in_flight/GALPROP_Sims/Run
 ic_file = "/project/ckarwin/astro/chris/annihilation_in_flight/GALPROP_Sims/Run_9_test2/results/ics_anisotropic_mapcube_57_SA100_F98_example"
 brem_file = "/project/ckarwin/astro/chris/annihilation_in_flight/GALPROP_Sims/Run_9_test2/results/bremss_mapcube_57_SA100_F98_example"
 
-# Optional pi0 spectral tilt: I(E) = K * (E/1 GeV)**index * I_GALPROP(E).
-# NOTE: the diffuse-analysis FermipyLike requires a fixed Constant(k=1)
-# spectrum on every mapcube source, so it rejects this option. Keep False.
+# Optional pi0 spectral tilt: I(E) = K * (E/1 GeV)**index * I_GALPROP(E),
+# with the index free in [-0.5, 0.5]. Needs the diffuse-analysis FermipyLike
+# from commit ffad2d3 or later, which passes the tilt to Fermitools.
 fit_pi0_index = False
 
 # Galactic-centre excess: NFW-squared template (DM_Model/) with a cutoff power law.
@@ -194,7 +194,10 @@ if make_src_model:
 if make_src_model == False:
     model = load_model(str(HERE / "fermi_src_model.yaml"))
 
-# Optional pi0 spectral tilt (see USER SETTINGS).
+# Optional pi0 spectral tilt (see USER SETTINGS). The mapcube amplitude stays
+# the spatial K; the spectral Powerlaw is a dimensionless multiplier with K fixed
+# at 1 and a fixed pivot, as FermipyLike requires. FermipyLike sends it to
+# Fermitools as the PowerLaw Index and Scale of the MapCubeFunction source.
 if fit_pi0_index:
     pi0_spatial = model.pion_decay.spatial_shape
     pi0_spatial.K.free = True

@@ -56,7 +56,7 @@ the comparison PDF are written to the current working directory.
 | Component | Source name(s) | Spatial model | Spectrum | Fitted? |
 |---|---|---|---|---|
 | 4FGL-DR4 point and extended sources within 30° of the GC | catalog names | catalog | catalog | Fixed (point sources can be freed, see `free_point_source_radius`) |
-| GALPROP π⁰ decay | `pion_decay` | GALPROP mapcube | from the mapcube | Normalization free |
+| GALPROP π⁰ decay | `pion_decay` | GALPROP mapcube | from the mapcube (optionally × a power-law tilt) | Normalization free (+ tilt index with `fit_pi0_index`) |
 | GALPROP inverse Compton | `ic` | GALPROP mapcube | from the mapcube | Normalization free |
 | GALPROP bremsstrahlung | `brem` | GALPROP mapcube | from the mapcube | Fixed at 1 |
 | Galactic-centre excess (`include_dm`) | `GCE_NFW` | NFW² template, `DM_Model/nfw_gamma1.fits` | cutoff power law | `K`, `index`, `xc` free |
@@ -89,7 +89,7 @@ All settings are in the **USER SETTINGS** block at the top of
 |---|---|
 | `savename` | Label used in every output file name. |
 | `make_src_model` | `True`: rebuild `fermi_src_model.yaml` from 4FGL-DR4 and the GALPROP files `pi0_file`, `ic_file`, `brem_file`. `False`: load the saved model. |
-| `fit_pi0_index` | Optional power-law tilt of the π⁰ spectrum. **Not supported** by the current `diffuse-analysis` `FermipyLike` (see the notes below); keep `False`. |
+| `fit_pi0_index` | Fit a power-law tilt of the π⁰ spectrum: I(E) = K (E / 1 GeV)^index × I_GALPROP(E), with `index` free in [−0.5, 0.5] (positive = harder). Needs the `diffuse-analysis` `FermipyLike` from commit `ffad2d3` or later. |
 | `include_dm`, `nfw_file` | Add the GCE component and choose its template. |
 | `include_bubbles`, `bubble_spectrum` | Add the bubbles; `"powerlaw"`, `"log_parabola"` or `"cutoff_powerlaw"` (used for both components). |
 | `loopI_directory`, `fixed_templates` | Files and fixed normalizations of the Sun, Moon and Loop I sources. |
@@ -176,10 +176,12 @@ you want to replot later without refitting.
 These points come from the `diffuse-analysis` branches and matter when the
 model is changed or other instruments are added:
 
-- **Mapcube sources** (`GalpropMap`: GALPROP, Sun, Moon, Loop I) must have a
-  fixed `Constant(k=1)` spectrum; the fitted quantity is the spatial `K`.
-  `FermipyLike` passes the FITS file to Fermitools (`MapCubeFunction`) and only
-  sends `K`. This is why the π⁰ tilt option is rejected.
+- **Mapcube sources** (`GalpropMap`: GALPROP, Sun, Moon, Loop I) take their
+  amplitude from the spatial `K`. Their spectrum must be either a fixed
+  `Constant(k=1)` or a `Powerlaw` tilt with `K` fixed at 1 and a fixed pivot.
+  `FermipyLike` passes the FITS file to Fermitools (`MapCubeFunction`) and
+  sends `K` as the normalization and the tilt as the Fermitools PowerLaw
+  `Index` and `Scale` (pivot in MeV). Both use the same signed exponent.
 - **Energies of mapcubes.** Fermitools reads the energies from the `ENERGIES`
   extension. The astromodels `GalpropMap.load_file` instead reads them from the
   third WCS axis, as log10(E/MeV) by default. GALPROP cubes follow that
