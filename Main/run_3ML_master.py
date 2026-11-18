@@ -62,8 +62,7 @@ ic_file = "/project/ckarwin/astro/chris/annihilation_in_flight/GALPROP_Sims/Run_
 brem_file = "/project/ckarwin/astro/chris/annihilation_in_flight/GALPROP_Sims/Run_9_test2/results/bremss_mapcube_57_SA100_F98_example"
 
 # Optional pi0 spectral tilt: I(E) = K * (E/1 GeV)**index * I_GALPROP(E),
-# with the index free in [-0.5, 0.5]. Needs the diffuse-analysis FermipyLike
-# from commit ffad2d3 or later, which passes the tilt to Fermitools.
+# with the index free in [-0.5, 0.5] (positive = harder).
 fit_pi0_index = False
 
 # Galactic-centre excess: NFW-squared template (DM_Model/) with a cutoff power law.

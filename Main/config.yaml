@@ -33,8 +33,7 @@ selection:
 
 gtlike:
   edisp : True
-  # Extra energy bins for energy dispersion. The all-sky fit uses -2 (see the
-  # Isotropic README); -1 is kept here to reproduce the existing results.
+  # Extra energy bins for energy dispersion (the all-sky fit uses -2).
   edisp_bins: -1
   irfs : 'P8R3_SOURCE_V3'
   edisp_disable : ['isodiff']   # the all-sky isotropic is an effective background
