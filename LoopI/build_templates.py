@@ -1,6 +1,8 @@
-"""Rebuild supplied intensity cubes; not needed for normal prepare/run/fit/plot."""
+"""Build Loop I intensity cubes once before the first isotropic prepare/run."""
 from pathlib import Path
+import argparse
 import json
+import os
 import numpy as np
 from scipy.interpolate import PchipInterpolator
 from astropy.io import fits
@@ -31,7 +33,16 @@ def curve(energy):
     out[~inside]=y[-1]*np.exp(a*np.log(energy[~inside]/e[-1])+b*(energy[~inside]/e[-1]-1))
     return out
 
-def main():
+def build(config_path, outdir=None):
+    config_path=Path(config_path).expanduser().resolve()
+    config=yaml.safe_load(config_path.read_text())
+    spec=config['mask']
+    if outdir is None:
+        configured=config.get('loopI',{}).get('directory')
+        outdir=(config_path.parent/Path(os.path.expandvars(configured)).expanduser()
+                if configured is not None else HERE)
+    outdir=Path(outdir).expanduser().resolve()
+    outdir.mkdir(parents=True,exist_ok=True)
     w=WCS(naxis=2); w.wcs.ctype=['GLON-CAR','GLAT-CAR']; w.wcs.crval=[0,0]
     w.wcs.crpix=[360.5,180.5]; w.wcs.cdelt=[-.5,.5]
     yy,xx=np.indices((360,720)); l,b=w.all_pix2world(xx,yy,0); l=(l+180)%360-180
@@ -42,15 +53,14 @@ def main():
     shells=raw/scale; combined=shells.sum(axis=0)
     hdr=w.to_header(); hdr['BUNIT']='1'; hdr['HISTORY']='S1+S2 uniform-volume LOS lengths / combined mean at |b|>10 deg.'
     for name,t in [('combined',combined),('S1',shells[0]),('S2',shells[1])]:
-        fits.writeto(HERE/f'loopI_{name}_spatial.fits',t.astype('float32'),hdr,overwrite=True)
+        fits.writeto(outdir/f'loopI_{name}_spatial.fits',t.astype('float32'),hdr,overwrite=True)
     energies=np.geomspace(10,1e6,161); pivot=float(curve(np.array([1000.]))[0])
-    np.savetxt(HERE/'empirical_intensity.txt',np.c_[energies,curve(energies)],header='MeV ph_cm-2_s-1_sr-1_MeV-1; reference-region mean intensity')
+    np.savetxt(outdir/'empirical_intensity.txt',np.c_[energies,curve(energies)],header='MeV ph_cm-2_s-1_sr-1_MeV-1; reference-region mean intensity')
     for name,intensity in [('empirical',curve(energies)),('powerlaw_seed',pivot*(energies/1000)**-2.4)]:
         h=hdr.copy(); h['BUNIT']='ph cm-2 s-1 sr-1 MeV-1'; h['CTYPE3']='ENERGY'; h['CUNIT3']='MeV'; h['CRPIX3']=1.; h['CRVAL3']=energies[0]; h['CDELT3']=1.
         h['HISTORY']='Actual energy samples: ENERGIES extension. See MODEL_NOTES.md.'
         eh=fits.BinTableHDU.from_columns([fits.Column(name='Energy',format='D',unit='MeV',array=energies)],name='ENERGIES')
-        fits.HDUList([fits.PrimaryHDU((intensity[:,None,None]*combined).astype('float32'),h),eh]).writeto(HERE/f'loopI_{name}_mapcube.fits',overwrite=True)
-    config=yaml.safe_load((HERE.parent/'config.yaml').read_text()); spec=config['mask']
+        fits.HDUList([fits.PrimaryHDU((intensity[:,None,None]*combined).astype('float32'),h),eh]).writeto(outdir/f'loopI_{name}_mapcube.fits',overwrite=True)
     dec=SkyCoord(l*u.deg,b*u.deg,frame='galactic').icrs.dec.deg
     keep=basic_mask(l,b,dec,spec); roi=(abs(l)<=20)&(abs(b)<=20)
     report={'intensity_at_1000_MeV':pivot,'seed_index':2.4,'allsky_map_integral_sr':float(np.sum(combined*om)),
@@ -62,16 +72,16 @@ def main():
     for name,t in [('S1',shells[0]),('S2',shells[1]),('combined',combined)]:
         weight=t*om
         report['intrinsic_flux_fractions'][name]={'isotropic_fit':float(weight[keep].sum()/weight.sum()),'GC_40x40':float(weight[roi].sum()/weight.sum()),'both':float(weight[keep&roi].sum()/weight.sum())}
-    (HERE/'model_metadata.json').write_text(json.dumps(report,indent=2))
+    (outdir/'model_metadata.json').write_text(json.dumps(report,indent=2))
     fig,axs=plt.subplots(1,2,figsize=(12,4.5),layout='constrained'); tab=np.loadtxt(HERE/'leptonic_curve.txt')
     for ax in axs:
         ax.loglog(tab[:,0],tab[:,2],color='#9467bd',ls='--',label='Extracted purple leptonic curve')
         ax.loglog(energies,energies**2*curve(energies),color='#173f5f',lw=1,label='MapCube spectrum (PCHIP + tail)')
-        ax.axvspan(300,100000,color='grey',alpha=.1,label='Configured fit range')
+        ax.axvspan(config['emin'],config['emax'],color='grey',alpha=.1,label='Configured fit range')
         ax.axvline(tab[-1,0],color='grey',ls=':',label='Last extracted point')
         ax.set(xlabel='Energy [MeV]',ylabel=r'$E^2 I(E)$ [MeV cm$^{-2}$ s$^{-1}$ sr$^{-1}$]'); ax.grid(alpha=.2)
     axs[0].set(xlim=(.1,1e6),ylim=(1e-10,.003)); axs[1].set(xlim=(300,3e5),ylim=(1e-12,.003)); axs[0].legend(fontsize=8)
-    fig.savefig(HERE/'loopI_spectrum.png',dpi=170); plt.close(fig)
+    fig.savefig(outdir/'loopI_spectrum.png',dpi=170); plt.close(fig)
     fig,axs=plt.subplots(3,2,figsize=(13,11),layout='constrained')
     for row,(name,t) in enumerate([('S1',shells[0]),('S2',shells[1]),('S1 + S2',combined)]):
         for col in range(2):
@@ -82,6 +92,17 @@ def main():
             if col: ax.set(xlim=(60,-60),ylim=(-40,70))
             fig.colorbar(im,ax=ax,label='Dimensionless intensity multiplier')
     fig.suptitle('Uploaded isotropic mask: hatching = excluded\nCyan = assumed GC-centred 40 x 40 degree ROI')
-    fig.savefig(HERE/'loopI_overlap.png',dpi=150); plt.close(fig)
+    fig.savefig(outdir/'loopI_overlap.png',dpi=150); plt.close(fig)
     print(json.dumps(report,indent=2))
+
+def main():
+    parser=argparse.ArgumentParser(description=__doc__)
+    parser.add_argument('--config',type=Path,default=HERE.parent/'Isotropic'/'config.yaml',
+                        help='Isotropic wrapper YAML; default: ../Isotropic/config.yaml')
+    parser.add_argument('--outdir',type=Path,
+                        help='Output asset directory; default: loopI.directory from config or this directory')
+    args=parser.parse_args()
+    build(args.config,args.outdir)
+
+
 if __name__=='__main__': main()

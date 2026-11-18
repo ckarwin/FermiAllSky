@@ -18,7 +18,7 @@ L is the forward line-of-sight length through a uniform-volume spherical shell. 
 
 C is the solid-angle-weighted mean of L_S1+L_S2 over **all longitudes with |b|>10 degrees**. Thus the dimensionless combined spatial template averages to one in that explicit reference domain. A=1 makes its mean intensity equal to the purple curve. The model does not divide intensity by two or convert it to a total flux using the figure's approximate 3 sr sensitivity area. The two separate spatial maps are contributions to the sum; neither is independently normalized to mean one.
 
-**Normalization limitation:** the figure's |b|>10 label does not specify the complete spatial weighting of the original extraction. Our all-longitude reference domain is a modelling convention, not a recovered paper footprint. Therefore A=1 is a fixed nominal amplitude, not a guaranteed reproduction of the paper's absolute flux for the Wolleben morphology. A matched published template/footprint would be needed for that equivalence. `free_norm: true` offers a single shared nuisance amplitude without changing the spectral shape or relative shell geometry.
+**Normalization limitation:** the figure's |b|>10 label does not specify the complete spatial weighting of the original extraction. Our all-longitude reference domain is a modelling convention, not a recovered paper footprint. Therefore A=1 is a fixed nominal amplitude, not a guaranteed reproduction of the paper's absolute flux for the Wolleben morphology. A matched published template/footprint would be needed for that equivalence. In `mode: combined`, `free_norm: true` offers a single shared nuisance amplitude without changing the spectral shape or relative shell geometry.
 
 ## Mask overlap
 
@@ -37,4 +37,4 @@ The assumed GC rectangle is entirely excluded from the isotropic fit, but Loop I
 
 ## Separate-shell extension
 
-`loopI.mode: separate` replaces the combined source with two sources sharing the same spectral shape and common spatial normalization. Independent amplitudes multiply L_S1 and L_S2; unit amplitudes recover the combined model. Their ratio is fitted rather than inferred from a published gamma-ray shell ratio. This extends the combined geometric prescription; the main LAT studies checked here did not supply individual shell spectra. See `../PUBLICATION_NOTES.md` for the literature comparison and recommended robustness tests.
+`loopI.mode: separate` replaces the combined source with two sources sharing the same spectral shape and common spatial normalization. Independent amplitudes multiply L_S1 and L_S2; unit amplitudes recover the combined model. Their ratio is fitted rather than inferred from a published gamma-ray shell ratio. This extends the combined geometric prescription; the main LAT studies checked here did not supply individual shell spectra. See [the isotropic guide](../Isotropic/README.md#loop-i-directory-and-model-options) for configuration, template generation, and fitting restrictions.
