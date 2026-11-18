@@ -1,8 +1,13 @@
 # Plots
 
-Scripts for plotting the results of the inner-Galaxy fit ([`Main/`](../Main/README.md)):
-count spectra, flux spectra and sky maps of the data, the model and the
-residuals, broken down by model component.
+Scripts for plotting the analysis results:
+
+- **Inner-Galaxy fit** ([`Main/`](../Main/README.md)): count spectra, flux
+  spectra and sky maps of the data, the model and the residuals, broken down by
+  model component.
+- **All-sky fit** ([`Isotropic/`](../Isotropic/README.md)): comparison of
+  isotropic spectra from different runs with the official LAT isotropic
+  template.
 
 ## Requirements
 
@@ -20,7 +25,7 @@ residuals, broken down by model component.
 
 ## Inputs
 
-The scripts read the files written by the inner-Galaxy fit from `../output/`,
+The inner-Galaxy plots read the files written by that fit from `../output/`,
 which should be the Fermipy working directory of that fit (`fermipy_outdir` in
 `Main/run_3ML_master.py`). Edit the paths if your files are elsewhere.
 
@@ -38,6 +43,16 @@ to plot.
 ## Scripts
 
 Run them from this folder.
+
+### `compare_isotropic.py`: isotropic spectra
+
+Plots E² I(E) of several `isotropic_spectrum.txt` files from all-sky runs
+together with the official LAT isotropic template
+(`iso_P8R3_SOURCE_V3_v1.txt`, from the Fermitools reference data) and its 1σ
+band. Use it to compare runs with different foreground models, for example
+with and without Loop I. Edit the file paths at the top to choose the runs. The
+figure is shown on screen, not saved to a file. Needs only NumPy and
+Matplotlib.
 
 ### `make_counts_plot.py`: count spectra
 
@@ -88,6 +103,7 @@ with these tools (see the comment at the top of the script).
 
 | File | Purpose |
 |---|---|
+| `compare_isotropic.py` | Isotropic spectra of several all-sky runs vs. the official template |
 | `make_counts_plot.py` | Count spectra by component, with residuals |
 | `plot_flux.py` | Flux (E² dN/dE) spectra by component, with residuals |
 | `plot_spatial.py` | Counts, model and residual sky maps |
