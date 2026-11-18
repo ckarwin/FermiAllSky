@@ -16,8 +16,8 @@ templates. Each folder has its own guide:
 | [`LoopI/`](LoopI/README.md) | Model | Loop I foreground templates (Wolleben shells S1 and S2) | `loopI_*_mapcube.fits` |
 | [`DM_Model/`](DM_Model/README.md) | Model | NFW (dark-matter-like) spatial templates for the Galactic-centre excess | `nfw_gamma*.fits` |
 | [`Bubbles_Model/`](Bubbles_Model/README.md) | Model | Low- and high-latitude Fermi-bubble spatial templates | `bubbles_*.fits` |
-| [`Isotropic/`](Isotropic/README.md) | Analysis | Masked all-sky fit: measures the isotropic spectrum and fits the GALPROP, Sun, Moon and Loop I normalizations | `isotropic_spectrum.txt`, `diffuse_normalizations.json` |
-| [`Main/`](Main/README.md) | Analysis | Inner-Galaxy (40° × 40°) 3ML fit, with the all-sky results as fixed backgrounds and optional Galactic-centre excess and Fermi bubbles | fitted parameters, model maps, GCE comparison plot |
+| [`Isotropic/`](Isotropic/README.md) | Analysis | Masked all-sky fit with GALPROP diffuse emission, 4FGL catalog sources, Sun, Moon and Loop I: measures the isotropic spectrum and the diffuse and foreground normalizations | `isotropic_spectrum.txt`, `diffuse_normalizations.json` |
+| [`Main/`](Main/README.md) | Analysis | Inner-Galaxy (40° × 40°) 3ML fit with GALPROP diffuse emission and 4FGL catalog sources, the all-sky results as fixed backgrounds, and optional Galactic-centre excess and Fermi bubbles | fitted parameters, model maps, GCE comparison plot |
 | [`tests/`](tests/) | — | Regression tests (`python -m pytest -q tests`) | — |
 
 How they connect:
@@ -25,11 +25,13 @@ How they connect:
 1. **Build the models** you need. The NFW and bubble templates are already in
    the repository; the Loop I templates are built once with one command; the
    Sun and Moon templates are made from the event selection of the all-sky fit.
-2. **Run the all-sky fit** (`Isotropic/`) with the GALPROP, Sun, Moon and Loop I
-   models. It measures the isotropic background and the foreground
-   normalizations.
-3. **Run the inner-Galaxy fit** (`Main/`) with those all-sky results held fixed,
-   plus the GCE and bubble models.
+2. **Run the all-sky fit** (`Isotropic/`). Its model contains the GALPROP
+   diffuse emission, the 4FGL catalog sources (held at their catalog values),
+   and the Sun, Moon and Loop I models. It measures the isotropic background
+   and the diffuse and foreground normalizations.
+3. **Run the inner-Galaxy fit** (`Main/`). Its model contains the GALPROP
+   diffuse emission and the 4FGL catalog sources, the all-sky results held
+   fixed, and the GCE and bubble models.
 
 ## Typical workflow
 
