@@ -428,6 +428,9 @@ def read_config(path):
     # Old configs may still contain this switch; reuse is now always selective
     # (source by source) whenever reuse_from is set.
     c.pop("reuse_source_maps", None)
+    # Retired switch: GALPROP units are no longer confirmed in the config.
+    # Old configs that still contain it are accepted.
+    c.pop("galprop_intensity_units_confirmed", None)
     # --- Input/output paths -------------------------------------------------
     for key in ["evfile", "scfile", "catalog", "extdir", "outdir"]:
         p = Path(os.path.expandvars(c[key])).expanduser()
@@ -568,6 +571,10 @@ def template_signature(c):
         for p in input_files(c)
     }
     d["pipeline_version"] = PIPELINE_VERSION
+    # The retired galprop_intensity_units_confirmed switch was always true in a
+    # completed preparation and was part of this hash. Keep it fixed so
+    # existing templates.npz files remain valid.
+    d["galprop_intensity_units_confirmed"] = True
     return hashlib.sha256(json.dumps(d, sort_keys=True).encode()).hexdigest()
 
 
@@ -641,10 +648,6 @@ def prepare(c):
     from astropy.io import fits
     from fermipy.gtanalysis import GTAnalysis
 
-    require(
-        c["galprop_intensity_units_confirmed"],
-        "Confirm mapcube differential-intensity units in config.yaml first.",
-    )
     from loopI import ensure_cubes
 
     # --- 1. Inputs ------------------------------------------------------------

@@ -165,16 +165,13 @@ galprop:
   IC:   {file: /path/ics_mapcube.fits,        free: true,  normalization: 1.0}
   pi0:  {file: /path/pion_decay_mapcube.fits, free: true,  normalization: 1.0}
   brem: {file: /path/bremss_mapcube.fits,     free: false, normalization: 1.0}
-galprop_intensity_units_confirmed: true
 ```
 
 - Any names can be used, except `isodiff`. At least one component is required.
 - `free: true` fits one normalization for all energies, starting at
   `normalization`. `free: false` multiplies the cube by `normalization`.
 - The files must be 3D mapcubes in differential intensity
-  (ph cm⁻² s⁻¹ sr⁻¹ MeV⁻¹) with an `ENERGIES` table in MeV. Set
-  `galprop_intensity_units_confirmed: true` once you have checked this;
-  `prepare` refuses to start otherwise.
+  (ph cm⁻² s⁻¹ sr⁻¹ MeV⁻¹) with an `ENERGIES` table in MeV.
 
 **Energy padding.** Energy dispersion needs the model slightly outside
 `[emin, emax]`. If a GALPROP cube stops short, `prepare` writes a padded copy
