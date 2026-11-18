@@ -71,7 +71,7 @@ nfw_file = str(REPO / "DM_Model" / "nfw_gamma1.fits")
 
 # Fermi bubbles (Bubbles_Model/): spectrum of EACH bubble component.
 include_bubbles = True
-bubble_spectrum = "powerlaw"  # "powerlaw", "log_parabola", or "cutoff_powerlaw"
+bubble_spectrum = "powerlaw"  # "powerlaw", "log_parabola", "cutoff_powerlaw" or "broken_powerlaw"
 
 # --- Results of the all-sky fit (Isotropic/) -----------------------------------
 # Fixed Sun, Moon and Loop I mapcubes: (source name, file, normalization).
@@ -317,9 +317,24 @@ if include_bubbles:
             spectrum.xc = 1.0e8  # 100 GeV in keV; initial value
             spectrum.xc.bounds = (1.0e6, 1.0e10)  # 1 GeV–10 TeV
             spectrum.xc.free = True
+        elif bubble_spectrum == "broken_powerlaw":
+            # dN/dE = K * (E/piv)**alpha                          for E < xb
+            #       = K * (xb/piv)**(alpha - beta) * (E/piv)**beta for E >= xb
+            # (continuous at the break; K is the flux at piv on the low side).
+            spectrum = Broken_powerlaw()
+            spectrum.alpha = -1.9
+            spectrum.alpha.bounds = (-4.0, -0.5)
+            spectrum.alpha.free = True
+            spectrum.beta = -2.5
+            spectrum.beta.bounds = (-5.0, -0.5)
+            spectrum.beta.free = True
+            spectrum.xb = 1.0e7  # 10 GeV in keV; initial value
+            spectrum.xb.bounds = (1.0e6, 1.0e8)  # 1-100 GeV
+            spectrum.xb.free = True
         else:
             raise ValueError(
-                "bubble_spectrum must be 'powerlaw', 'log_parabola', or 'cutoff_powerlaw'"
+                "bubble_spectrum must be 'powerlaw', 'log_parabola', "
+                "'cutoff_powerlaw' or 'broken_powerlaw'"
             )
 
         spectrum.piv = 1e6  # 1 GeV in keV

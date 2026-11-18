@@ -68,6 +68,8 @@ Spectral forms (energies in keV, pivot 1 GeV):
 - Power law: dN/dE = K (E/piv)^index
 - Log parabola: dN/dE = K (E/piv)^(alpha − beta ln(E/piv))
 - Cutoff power law: dN/dE = K (E/piv)^index exp(−E/xc)
+- Broken power law: dN/dE = K (E/piv)^alpha below the break energy `xb`, and
+  K (xb/piv)^(alpha − beta) (E/piv)^beta above it (continuous at the break)
 
 The GCE and bubble templates are normalized to 1, so their fitted spectrum is
 the total flux of the component over the whole template (60° × 60° for the NFW
@@ -88,7 +90,7 @@ All settings are in the **USER SETTINGS** block at the top of
 | `make_src_model` | `True`: rebuild `fermi_src_model.yaml` from 4FGL-DR4 and the GALPROP files `pi0_file`, `ic_file`, `brem_file`. `False`: use the saved model. |
 | `fit_pi0_index` | Also fit a power-law tilt of the π⁰ spectrum: I(E) = K (E / 1 GeV)^index × I_GALPROP(E), with `index` between −0.5 and 0.5 (positive = harder). |
 | `include_dm`, `nfw_file` | Include the GCE and choose its NFW template. |
-| `include_bubbles`, `bubble_spectrum` | Include the bubbles; spectrum `"powerlaw"`, `"log_parabola"` or `"cutoff_powerlaw"`. |
+| `include_bubbles`, `bubble_spectrum` | Include the bubbles; spectrum `"powerlaw"`, `"log_parabola"`, `"cutoff_powerlaw"` or `"broken_powerlaw"` (break energy free between 1 and 100 GeV). |
 | `fixed_templates`, `loopI_directory` | Files and fixed normalizations of the Sun, Moon and Loop I. |
 | `isotropic_spectrum_file` | Isotropic spectrum from the all-sky fit. |
 | `free_point_source_radius` | Free the normalization of every 4FGL point source within this distance of the GC (default 0°: none). |
