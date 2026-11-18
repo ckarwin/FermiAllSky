@@ -74,7 +74,7 @@ All commands are run from this folder in an activated Fermipy environment.
 ```bash
 cd Isotropic
 
-# 0. (Optional) check the installation with synthetic data: 16 tests should pass.
+# 0. (Optional) check the installation (no LAT data needed).
 python fit_isotropic.py self-test
 
 # 1. Edit config.yaml: data, catalog, GALPROP, Sun/Moon paths, outdir.
@@ -102,11 +102,11 @@ python fit_isotropic.py <command> [config.yaml]
 
 | Command | What it does | When to use it |
 |---|---|---|
-| `prepare config.yaml` | Checks inputs, builds the per-shell Loop I cubes if needed, runs Fermipy setup, extracts the templates, checks them against Fermipy's own likelihood, and writes `templates.npz`. | First run, or after changing data, response or model files (in a **new** `outdir`). |
+| `prepare config.yaml` | Selects the data and builds the predicted-count templates of every model component with Fermipy (`templates.npz`). The slow step. | First run, or after changing data, response or model files (in a **new** `outdir`). |
 | `fit config.yaml` | Loads `templates.npz`, applies the mask, runs the fit and writes the results. | After `prepare`, or after changing only the mask or free/fixed/normalization settings. |
 | `plot config.yaml` | Remakes the plots from the saved fit selected by the config. | After a fit, or after changing plot settings. |
 | `run config.yaml` | `prepare`, then `fit`, then `plot`. | A complete run into a fresh `outdir`. It does not resume a partly finished run. |
-| `self-test` | 16 synthetic tests of the fit, profiles, mask, export and plotting. | Checking an installation. It does not test LAT data or the LAT response. |
+| `self-test` | Quick checks of the fitting code on simulated data. | Checking an installation (needs no LAT data). |
 
 Two safety rules prevent results from being silently overwritten:
 
@@ -411,18 +411,16 @@ and residual cosmic rays in the event class), as seen with this event selection.
 - The values are intensities per steradian per MeV. Do not multiply by 4π or
   by the retained solid angle.
 - The table runs from the first to the last bin **centre** (about 347 MeV to
-  86 GeV for the default binning). A wider analysis range needs an explicit
-  extrapolation; check how the receiving code handles it (`Main/run_3ML_master.py`
-  extends the end-point slopes).
+  86 GeV for the default binning). An analysis over a wider range needs to
+  extend it (the inner-Galaxy fit in `Main/` does this automatically).
 - The file gives best-fit values; it does not by itself establish a detection
   in every bin. Use `isotropic_bins.csv` (ideally with `compute_profiles: true`)
   for uncertainties.
 
-To carry the whole all-sky model into the inner-Galaxy analysis, also copy the
-fitted Sun, Moon and Loop I amplitudes from `diffuse_normalizations.json`. If
-Loop I was fitted with an analytic shape, transfer that shape as well; the
-amplitudes alone refer to that shape. The Main analysis names its Loop I
-sources `Loop_I_S1`/`Loop_I_S2` and has its own `loopI_directory` setting.
+To use the full all-sky model in the inner-Galaxy fit, also copy the fitted
+Sun, Moon and Loop I normalizations from `diffuse_normalizations.json`; see
+[Using the all-sky results](../Main/README.md#using-the-all-sky-results) in the
+`Main` guide.
 
 ## Conventions and caveats
 
@@ -437,21 +435,18 @@ sources `Loop_I_S1`/`Loop_I_S2` and has its own `loopI_directory` setting.
   amplitudes are re-fitted.
 - **Mask edges** are applied at pixel centres. Model predictions in masked
   pixels (saved in `diagnostics.npz`) are extrapolations, not fit results.
-- **Self-checks during `prepare`.** The templates must add up to Fermipy's full
-  model, and changing each normalization by ±20% must change Fermipy's own
-  log-likelihood by the same amount as the explicit formula used in `fit`.
-  `prepare` stops if either check fails.
+- **Built-in check.** `prepare` verifies that the templates reproduce
+  Fermipy's own model and likelihood, and stops if they do not.
 
 ## Testing
 
 ```bash
-python fit_isotropic.py self-test     # 16 synthetic tests; no LAT data or Fermitools
+python fit_isotropic.py self-test     # simulated data; no LAT data or Fermitools
 cd .. && python -m pytest -q tests    # repository tests (need Astropy and pytest)
 ```
 
-These tests check the code (fit, profiles, mask, caching, reuse logic, Loop I
-templates, plots). They do not validate the LAT response or a science result;
-the `prepare` self-checks above do that on real data.
+These tests check the code. They do not check the LAT response or a science
+result.
 
 ## Files in this folder
 
