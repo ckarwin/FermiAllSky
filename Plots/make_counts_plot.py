@@ -89,7 +89,7 @@ data = hdu[0].data
 moon_counts = data.sum(axis=(1,2))
 
 # Get contribution from Loop I S1:
-mcube_file = f"../output/mcube_Loop_I_SI_{savename}_00.fits"
+mcube_file = f"../output/mcube_Loop_I_S1_{savename}_00.fits"
 hdu = fits.open(mcube_file)
 data = hdu[0].data
 LIS1_counts = data.sum(axis=(1,2))
