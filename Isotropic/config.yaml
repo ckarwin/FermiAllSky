@@ -46,8 +46,6 @@ filter: DATA_QUAL>0 && LAT_CONFIG==1
 logging:
   chatter: 0
   verbosity: 1
-# Separate from your original ThreeML_Analysis directory:
-outdir: /project/ckarwin/astro/chris/annihilation_in_flight/build_analysis_pipeline/Run_19/ThreeML_Analysis/Isotropic/isotropic_fit/output
 # auto resolves to -2 here (your original used -1); at 20 MeV it selects +4.
 edisp_bins: auto
 # Verify differential-intensity units, not E^2*dN/dE or unit-normalized maps. Should be ph/cm2/s/sr/MeV 
@@ -81,15 +79,17 @@ additional_diffuse:
     free: true
     normalization: 1.0
 
+# Paths are relative to THIS YAML; use a new outdir for each preparation.
 outdir: output_with_solar_and_loopI_separate
-reuse_from: output_with_solar_and_loopI  # Your previous isotropic output directory
+reuse_from: output_with_solar_and_loopI  # Omit or set null for the first preparation.
 
-# One combined Wolleben S1+S2 component; same spectrum and fixed relative geometry.
+# Separate Wolleben S1/S2 components: shared spectrum, independent amplitudes.
 loopI:
   enabled: true
-  mode: separate 
+  mode: separate
+  # directory: ../LoopI     # Optional; default is repository-level LoopI/.
   spectrum: empirical       # empirical | powerlaw | cutoff_powerlaw | logparabola
-  free_norm: true          # true fits ONE shared norm, including empirical mode
+  free_norm: true          # separate: one free norm PER SHELL; combined: one shared norm
   normalization: 0.14        # fixed multiplier, or starting value if free_norm=true
 # Analytic choices use parameters, e.g.:
 #  spectrum: cutoff_powerlaw
@@ -101,7 +101,7 @@ loopI:
 #    beta: {value: 0.1, free: true, min: 0.0, max: 1.0}
 compute_profiles: false
 # To fit independent S1/S2 amplitudes with the SAME empirical shape:
-# add mode: separate inside loopI above, and set free_norm: true.
+# use mode: separate and free_norm: true (as configured above).
 # Optional independent controls inside loopI (requires mode: separate)
 #  shells:
 #    S1: {free_norm: true, normalization: 1.0}

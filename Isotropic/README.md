@@ -1,307 +1,340 @@
-# Isotropic extraction with global GALPROP normalizations — version 3
+# All-sky isotropic fit pipeline
 
-This version supersedes versions 1 and 2. It preserves each GALPROP component's
-predicted spectrum and spatial distribution, fitting **one normalization per
-component across the entire energy range**. All 4FGL parameters remain fixed.
-The empirical isotropic component has one free amplitude per energy bin.
-All amplitudes are fitted simultaneously in a masked Poisson likelihood.
+The maintained entry point is [`fit_isotropic.py`](fit_isotropic.py). It prepares
+full-sky LAT response products, then fits a **masked** Poisson likelihood with
+one isotropic amplitude per energy bin and one amplitude across all energies
+for each free diffuse component. Catalog point and extended sources stay fixed.
+The current preparation/cache version is **6**.
 
+## Quick start
 
-## Matching your uploaded config and initializing isotropic emission
-
-The shipped wrapper YAML preserves your FT1/spacecraft paths, tmin=239557417,
-tmax=780439551, emin=300, emax=800000, binsperdec=8, evclass=128, evtype=3,
-zmax=90, quality filter, IRFs and logging (chatter=0, verbosity=1).
-It keeps the Galactic coordinate convention. The GC center no longer selects
-an ROI because the preparation is full-sky.
-
-The required spatial change is from a 40-degree WCS ROI to full-sky HEALPix.
-The supplied hpx_order=8 corresponds to NSIDE=256, characteristic pixel scale
-about 0.229 degrees, close to your 0.2-degree WCS bins. The preserved binsz=0.2
-is only bookkeeping in HPX mode; hpx_order determines actual angular resolution.
-All-sky source maps at this resolution can be large. Use order 6 for a first
-smoke test in a separate outdir, then verify convergence with finer binning.
-The output is a sibling Isotropic_Analysis_v3 directory, not your existing
-ThreeML_Analysis directory.
-
-Your original edisp_bins=-1 is changed to auto, resolving to -2 with your energy
-range/binning. This covers the wider migration range discussed by the FSSC.
-The isotropic component retains apply_edisp=false.
-
-Default isotropic initialization:
-
-```yaml
-isotropic:
-  mode: powerlaw
-  index: -2.3
-  pivot_MeV: 1000.0
-  intensity_at_pivot: 1.0e-10
-```
-
-The reference intensity has units ph cm^-2 s^-1 sr^-1 MeV^-1. There is no external
-measurement or prior in this mode. Every isotropic bin has an independent
-nonnegative normalization. Rescaling the reference normalization just inversely
-rescales those fitted coefficients, leaving physical fitted intensities unchanged
-(up to numerical precision). The tests explicitly verify this invariance.
-The assumed index controls shape WITHIN each finite energy bin; it does not tie
-the amplitudes across bins. This within-bin assumption is needed to integrate
-exposure/response over a bin. Repeat with other reference indices or finer bins
-if the result is sensitive to it. A constant differential intensity is available
-by setting index: 0.0, although a declining spectrum is a more practical basis
-across the large energy range. The reference normalization should stay within a
-reasonable numerical scale even though it has no physical constraint on the fit.
-
-An optional external reference remains available:
-
-```yaml
-isotropic:
-  mode: file
-  file: /path/to/reference.txt
-```
-
-Independent Galactic controls (normalization need not equal 1):
-
-```yaml
-galprop:
-  IC:   {file: /path/to/IC.fits,   free: true,  normalization: 1.0}
-  pi0:  {file: /path/to/pi0.fits,  free: true,  normalization: 1.0}
-  brem: {file: /path/to/brem.fits, free: false, normalization: 1.0}
-```
-
-Frozen contributions are added to the fixed counts prediction and omitted from
-the optimizer/covariance. Their fixed values are recorded in the normalization
-summary. Uncertainty in a frozen component is not propagated into the isotropic
-errors. They still appear separately in the component plots.
-
-## Energy dispersion and the meaning of the isotropic result
-
-Energy dispersion is enabled in Fermipy/Fermitools for GALPROP and the fixed
-4FGL catalog. It is deliberately disabled for the effective isotropic template,
-following the FSSC convention for empirical isotropic background files:
-
-    gtlike:
-      edisp: true
-      edisp_bins: <resolved setting>
-      edisp_disable: [isodiff]
-
-This is an effective, event-selection-dependent isotropic background spectrum,
-including residual charged particles. It is NOT a deconvolved measurement of
-pure astrophysical isotropic gamma rays. Reuse the extracted text file with
-energy dispersion OFF for that component, while retaining it for GALPROP and
-4FGL. Applying gamma-ray energy dispersion again to this effective template
-would change the convention of the extracted model.
-
-`edisp_bins: auto` selects enough bins for at least 0.2 dex of migration at
-emin >=100 MeV, using the spectral correction (-2 or -3) when possible. For
-emin <100 MeV it requires at least 0.4 dex and selects positive `edisp_bins`
-(spatial-map mixing, which also handles the energy-dependent PSF). With the
-provided 8 bins/decade, the settings are -2 at 300 MeV and +4 at 20 MeV.
-FSSC documents that the positive mode is more computationally expensive and
-its recommendation page describes it as still being validated. This script's
-automatic low-energy choice is a modeling choice, not a certified 20 MeV
-analysis prescription. You can also request a positive setting at higher energies.
-Requests requiring more than the supported four migration bins fail explicitly;
-reduce the number of analysis bins per decade if necessary.
-
-GALPROP MapCubes must extend below and above the selected reconstructed-energy
-range. The preflight conservatively requires abs(edisp_bins)+1 padded bins on
-each side. No silent extrapolation of GALPROP is allowed. Positive edisp requires
-fresh exposure/source maps with the extra energy coverage: old version-1 caches
-cannot be used. The on-machine checks compare explicit Poisson likelihood
-changes with the native energy-dispersion-enabled likelihood.
-
-## Energy range
-
-Default: **300 MeV to 800 GeV**, matching your uploaded configuration. Set `emin: 20.0` for a 20 MeV lower threshold.
-The code accepts emin >=20 MeV. This is software support, not evidence that a
-particular event selection/IRF, source catalog or foreground model gives an
-accurate isotropic measurement at 20 MeV. The fit needs valid response and model
-coverage across the padded true-energy range, and FT1 data that actually contain
-the selected low-energy events. In particular, an event file already selected
-above 100/300 MeV cannot be used for a 20 MeV fit.
-
-Below 100 MeV, investigate broad-PSF spillover from the plane/bubbles, Earth-limb
-contamination, catalog spectral extrapolation and diffuse-model uncertainty.
-The code uses a uniform zmax=90 degrees by default; choose event/zenith cuts
-appropriate to your low-energy analysis and repeat with alternative masks/cuts.
-These systematic effects are not included in the statistical error bars.
-
-If the isotropic seed file does not reach 20 MeV, provide a wider seed or set
-`allow_seed_extrapolation: true`. That option extends only the seed with an
-endpoint power law; the amplitude of every isotropic bin is still fitted.
-It does not fabricate a measured low-energy spectrum. The exact seed used is
-saved as `isotropic_seed_used.txt`. The within-bin seed shape remains an
-assumption, including wherever it is extrapolated.
-
-## Mask
-
-Excluded at pixel centers:
-
-- |Galactic b| <10 degrees;
-- |ICRS Dec| >60 degrees;
-- |wrapped Galactic l| <=30 degrees AND |b| <=60 degrees.
-
-The plane and pole cuts follow the FSSC background-model page. The bubble
-rectangle is a deliberately broad approximation, not an official bubble
-contour. All boundaries are configurable. The mask acts on observed count
-pixels only. Full-sky Galactic and catalog emission is convolved first, so
-modeled flux from excluded directions can still contribute through the PSF.
-This does not remove PSF leakage from any UNMODELED bubble/plane component.
-
-## Inputs and environment
-
-Run inside your working Fermipy/Fermitools environment with CALDB, NumPy,
-SciPy, PyYAML, Astropy, Matplotlib, and Fermipy's compatible Gammapy/HEALPix
-requirements. The plotting code itself does not require healpy. Avoid replacing
-packages in an otherwise working LAT environment just for this script.
-
-Edit `config.yaml`:
-
-1. Supply genuinely all-sky FT1 data, or a text list of absolute FT1 paths,
-   plus spacecraft data covering the observation. A GC-only download is invalid.
-2. Set tmin/tmax in Fermi MET; the example dates are placeholders for your data.
-3. Supply a local 4FGL FITS catalog and matching extended-source template folder.
-4. Supply full-sky Fermitools WCS GALPROP FITS MapCubes with an ENERGIES extension
-   in MeV. Intensities must be ph cm^-2 s^-1 sr^-1 MeV^-1, NOT E^2 dN/dE and
-   NOT normalized to unit integral. Raw GALPROP HEALPix outputs need conversion.
-   Set `galprop_intensity_units_confirmed: true` once checked.
-5. The event class/type, IRFs, time range, data paths and logging now match your
-   uploaded configuration. Catalog, extended-template and separate GALPROP paths
-   were absent in that file and remain explicit /EDIT placeholders.
-6. For each GALPROP entry, set `file`, `free` and `normalization`. Defaults:
-   IC free, pi0 free, brem fixed at 1.0. For a free component, normalization is
-   the optimizer's initial value; for a frozen component it is the fixed value.
-   Each free component has just ONE fitted normalization over all energies.
-   These per-component settings supersede the former galprop_mode switch.
-7. No external isotropic file is needed in the default powerlaw mode. The
-   generated reference is only a count-template basis; it is not a prior.
-
-Do not add the official Galactic diffuse model alongside these GALPROP components.
-That would double-count the foreground. YAML paths are resolved relative to the
-YAML; paths inside FT1 list files should be absolute.
-
-## Run and plot
-
-After extracting the ZIP, work inside its `isotropic_fit` folder:
+Run these commands from the repository root, in your Fermipy/Fermitools environment:
 
 ```bash
-python fit_isotropic.py self-test
-python fit_isotropic.py run config.yaml
+python Isotropic/fit_isotropic.py self-test
+# Edit Isotropic/config.yaml for your data and model paths first.
+python LoopI/build_templates.py --config Isotropic/config.yaml
+python Isotropic/fit_isotropic.py run Isotropic/config.yaml
 ```
 
-`run` prepares the templates, fits, and plots. Alternatively:
+For a **first preparation**, remove `reuse_from` or set it to `null`, and choose an
+unused `outdir`. The supplied config is an example of a follow-up run: it points
+to a previous output directory that is not included in the repository. Its data,
+GALPROP, catalog, extended-source, and Sun/Moon paths are site-specific examples.
+Change those paths to files available in your environment.
+
+The Loop I build is needed once on a fresh checkout: the reconstruction inputs
+are tracked, but the large generated FITS files are not. Skip it if Loop I is
+disabled or the required cubes already exist. Rebuilding overwrites the generated
+assets and invalidates affected preparation caches; do not rebuild during a fit.
+
+`prepare` requires Fermipy, Fermitools/pyLikelihood, the LAT IRFs, event and
+spacecraft data, a catalog and its extended templates. NumPy, SciPy, PyYAML,
+Astropy, and Matplotlib support the local utilities. `self-test` and empirical
+cached `fit`/`plot` do not require a live LAT response calculation. **Every analytic
+Loop I fit uses Fermipy/Fermitools**, including an analytic shape with fixed
+parameters. The regression suite additionally uses pytest:
 
 ```bash
-python fit_isotropic.py prepare config.yaml
-python fit_isotropic.py fit config.yaml
-python fit_isotropic.py plot config.yaml
+python -m pytest -q tests
 ```
 
-Replot from a notebook in that folder:
+## What each command does
 
-```python
-from fit_isotropic import read_config, plot, result_dir
-c = read_config('config.yaml')
-plot(c)
-print(result_dir(c))
+The following commands assume `cd Isotropic`; `config.yaml` is the wrapper
+configuration, not raw Fermipy YAML.
+
+| Command | Action | When to use it |
+|---|---|---|
+| `python fit_isotropic.py prepare config.yaml` | Validates inputs, generates separate Loop I cubes if requested, prepares LAT event/exposure/source-map products, checks the native likelihood, and saves `templates.npz`. | First run, or changed inputs/response in a **new** `outdir`. |
+| `python fit_isotropic.py fit config.yaml` | Loads and checks the prepared cache, applies the mask, fits amplitudes and optional Loop I shape, and saves results. | Fit after preparation, or change fit-only controls. Does not automatically prepare stale inputs. |
+| `python fit_isotropic.py plot config.yaml` | Reads the matching saved fit and writes spectrum/count/residual plots. | Regenerate plots or change plot settings without refitting. |
+| `python fit_isotropic.py self-test` | Runs 16 synthetic numerical, cache/export, and plotting tests. No YAML is needed. | Check the local installation and numerical implementation; this is not a real LAT data test. |
+| `python fit_isotropic.py run config.yaml` | Runs `prepare`, then `fit`, then `plot`. | A complete run into a fresh output directory. It is **not** an automatic resume command. |
+
+Preparation refuses to reuse an existing `outdir/fermipy/` as its destination,
+including one left by a failed preparation. A fit refuses to overwrite its result
+directory. Use `plot` for existing results, move an incomplete result directory
+aside before refitting, or select a new output for a new preparation.
+
+## Output paths and reuse
+
+```yaml
+outdir: output_with_solar_and_loopI_separate
+reuse_from: output_with_solar_and_loopI
 ```
 
-Or plot a specific existing fit directory directly:
+`outdir` is the **new run's destination**. `reuse_from` is an **old run's root**,
+containing `fermipy_config.yaml` and `fermipy/`, from which compatible products may
+be copied. It is not the old `bestfit_<hash>/` directory or `fermipy/` itself.
+They must differ. Old products are read-only; copies are used in the new run.
 
-```python
-from plots import plot_results
-plot_results('/path/to/isotropic_run_v2/fit_...', {
-    'bands_MeV': [[20, 100], [100, 300], [300, 1000], [1000, 10000]],
-    'map_nlon': 360,
-})
+Relative paths resolve against the directory containing the YAML, independent of
+the shell's working directory. Thus the example above writes under `Isotropic/`
+when used with `Isotropic/config.yaml`. Absolute paths, `~`, and environment
+variables are supported for configured input/output paths.
+
+There must be **one `outdir` key**. The old example contained two; normal YAML
+loading silently used the later `output_with_solar_and_loopI_separate` value.
+The duplicate has been removed, preserving that effective destination. The
+wrapper now rejects duplicate keys, including nested duplicates, with a line
+number instead of silently changing your configuration.
+
+With `reuse_from`, data, selection, binning, and response settings must match.
+The code copies compatible selected events, count cube, livetime cube, and
+exposure map. It checks source definitions and referenced-file content before
+reusing individual source maps, including maps stored in numbered FITS chunks.
+New, changed, missing, or invalid source maps are left for native generation.
+`reuse_report.json` records those decisions. A changed event selection or IRF
+requires a fresh preparation **without** `reuse_from`; reuse fails explicitly
+rather than silently falling back. Data files should be immutable.
+
+Version 6 also checks the underlying Loop I base cube, spatial maps, and spectral
+metadata/table for changes. Existing version-5 `templates.npz` files need a new
+preparation in a new `outdir`; `reuse_from` can still reuse compatible expensive
+LAT products from that old run.
+
+## Loop I directory and model options
+
+The default asset directory is now the repository-level [`LoopI/`](../LoopI/),
+next to `Isotropic/`. It is located relative to the driver, not the working
+directory. **No filename is needed** in the normal integrated configuration:
+
+```yaml
+loopI:
+  enabled: true
+  mode: separate
+  spectrum: empirical
+  free_norm: true
+  normalization: 0.14
+  # directory: ../LoopI  # Optional override, relative to THIS YAML.
 ```
 
-Plots use whole energy bins. Requested band boundaries are snapped by selecting
-bins whose centers fall in the requested band; actual edge coverage is displayed
-in plot titles and recorded in `plot_bands.txt`. There is no fractional splitting
-of observed energy bins.
+If you move the assets elsewhere, use `directory: /absolute/path/to/LoopI` (or an
+appropriate relative path). The directory must contain the generated cubes,
+spatial maps, `model_metadata.json`, and `empirical_intensity.txt`. Metadata,
+normalization checks, and spectrum export all use this same directory.
 
-## Joint likelihood
+The builder reads `loopI.directory` when present. An explicit `--outdir` overrides
+that choice for the build only; make sure it agrees with the fit configuration:
 
-For energy bin k and retained pixel p:
+```bash
+python LoopI/build_templates.py --config Isotropic/config.yaml --outdir /path/to/LoopI
+```
 
-    mu_kp = fixed_4FGL_kp + a_iso,k*T_iso,kp + sum_j A_j*T_GALPROP,jkp
-    -log L = sum_k,p [mu_kp - n_kp log(mu_kp)] + constant.
+By default the builder reads `Isotropic/config.yaml` and writes beside itself.
+It produces the combined empirical and power-law seed mapcubes plus the combined,
+S1, and S2 spatial maps, metadata, spectrum table, and diagnostic plots. `prepare`
+then creates the requested S1/S2 mapcubes from these inputs, preserving the common
+spatial normalization. At unit amplitudes, S1+S2 equals the combined model.
 
-A_j is a single scalar shared by ALL energies. The Galactic templates already
-include the requested energy-dispersion response; linearity permits scaling
-them globally without recalculating the response each optimizer iteration.
-The effective isotropic template has no energy redistribution, so its amplitudes
-can be varied independently in reconstructed-energy bins. Catalog sources are
-never optimized. `setup(init_sources=False)` skips expensive source diagnostics.
+| Option | Meaning |
+|---|---|
+| `enabled: false` | Omit the integrated Loop I sources. |
+| `mode: combined` | One source, `LoopI`; one amplitude multiplies the fixed S1+S2 sum. This is also the default when `mode` is omitted. |
+| `mode: separate` | Two sources, `LoopI_S1` and `LoopI_S2`; independent amplitudes, with a shared spectral shape. |
+| `free_norm: true` | Fit the amplitude: **one per shell** in separate mode, one total in combined mode. |
+| `free_norm: false` | Hold the amplitude at `normalization`. |
+| `normalization: 0.14` | Starting amplitude when free; fixed multiplier otherwise. It does not rescale the input files. |
+| `spectrum: empirical` | Use the reconstructed curve with fixed spectral shape; no `parameters` block. |
 
-Isotropic intensity = fitted a_iso,k times the seed intensity at the geometric
-bin center. Do not multiply/divide by 4*pi or the retained solid angle.
-Profile intervals reoptimize every OTHER isotropic amplitude and every global
-Galactic amplitude. Shared Galactic nuisance parameters create correlations
-between isotropic bins. Their full covariance is saved.
+Optional shell-specific controls, nested inside `loopI`, override the shared
+normalization defaults in separate mode:
 
-## Outputs and plots
+```yaml
+  shells:
+    S1: {free_norm: true, normalization: 0.14}
+    S2: {free_norm: false, normalization: 0.20}
+```
 
-Preparation produces `templates.npz`, `preparation_checks.json`,
-`fermipy_config.yaml`, and `isotropic_seed_used.txt`.
-Each `fit_<hash>/` directory contains:
+The current driver also supports analytic shape fitting directly; no separate
+spectral-fit script is required:
 
-- `isotropic_bins.csv`: intensities, 68% profile interval endpoints, 95% upper
-  limits, TS, counts and deviance per bin.
-- `galprop_normalizations.json`: ONE normalization and profile interval per
-  Galactic component (or the specified value for frozen components).
-- `covariance.npz`: full joint amplitude covariance, best fit and parameter
-  order (all isotropic bins followed by FREE global Galactic normalizations).
-- `diagnostics.npz`: observed/model count cubes, separate fitted components,
-  pixel coordinates, retained mask and energy edges. Predictions in excluded
-  regions are extrapolations; they never contribute to reported fit statistics.
-- `fit_report.json`: settings, selected area, assumptions and joint deviance.
-- `isotropic_spectrum.png` and `.pdf`: E^2 I(E) in GeV cm^-2 s^-1 sr^-1,
-  with profile error bars and upper limits for isotropic TS<4.
-- `counts_spectrum.png`: masked data, fitted total, fixed catalog, isotropic and
-  GALPROP counts; fractional residuals below. Data errors are sqrt(counts), not
-  uncertainty in the fitted model prediction.
-- `residuals_<band>.png`: Galactic Mollweide maps of data−model, (data−model)/model,
-  and (data−model)/sqrt(model). Maps are unsmoothed; excluded pixels are gray.
-  The Pearson residual is a diagnostic, NOT a likelihood significance/TS map.
-  Colors clip at the 99th percentile of absolute retained-pixel residuals.
-  The display grid samples nearest original pixels; it is not a new count binning.
+```yaml
+loopI:
+  enabled: true
+  mode: separate
+  spectrum: cutoff_powerlaw
+  free_norm: true
+  normalization: 0.14
+  parameters:
+    index: {value: 2.4, free: true, min: 0.5, max: 5.0}
+    cutoff_MeV: {value: 30000, free: true, min: 1000, max: 10000000}
+compute_profiles: false
+```
 
-If all bins have TS>=4, positive intensity and a nonsingular joint covariance,
-`isotropic_spectrum.txt` is exported (MeV, differential intensity per MeV per sr).
-Otherwise use the CSV/upper limits. The text file log-log interpolates bin-center
-estimates, which approximates the piecewise seed-scaled extracted spectrum.
-Its valid range is first to last bin CENTER. Extract beyond the intended reuse
-interval, then reuse its interior. Reforward-fold the interpolated text spectrum
-before precision use. Keep energy dispersion disabled for it on reuse.
+`powerlaw` accepts `index`; `cutoff_powerlaw` accepts `index` and `cutoff_MeV`;
+`logparabola` accepts `alpha` and `beta`. Analytic indices are positive for falling
+spectra, e.g. `index: 2.4` means E^-2.4. Shape parameters are tied between S1/S2;
+amplitudes can differ. The spectrum is normalized at 1000 MeV. Unspecified
+analytic parameters default to free; set `free: false` explicitly to freeze them.
 
-## Reuse and validation limits
+Analytic shapes are refolded through the native response during `fit`, before the
+final amplitude fit. Free shape fits require `compute_profiles: false`; their
+saved linear covariance is **conditional on the fitted shape**, not a full joint
+shape/amplitude covariance. Fixed-shape normalization profiling is supported.
 
-Changing the mask or per-component free/normalization controls reuses the prepared response products and
-creates a different fit directory. Plot options can be changed without refitting.
-A fit directory is never overwritten. Choose a NEW outdir if preparation fails,
-if input file contents change, or if energy/event/response settings change.
-The configuration signature includes the pipeline version, but does not hash
-all large science input files. Preparation of thousands of all-sky source maps
-can be costly. hpx_order=6 can be used as a smoke test in a separate outdir;
-check finer angular binning before drawing scientific conclusions.
+The empirical curve is a reconstruction, not an author-supplied flux table.
+Its amplitude convention and spectral extrapolation limits are documented in
+[`LoopI/MODEL_NOTES.md`](../LoopI/MODEL_NOTES.md).
 
-Local tests cover global-normalization recovery, a toy energy-redistribution
-response, analytic gradients/Hessian, coupled profiles, Poisson recovery, mask
-exclusion, covariance/boundaries, seed extrapolation, 20/300 MeV configuration,
-end-to-end cached fitting/export, and generation of spectrum/residual plots.
-See VALIDATION.txt for what actually ran. The tests are not LAT calibration tests.
+Moving assets changes absolute input paths and may leave old XML/config files
+pointing at the old location. Set the new directory and prepare a new output;
+do not assume an existing analytic fit can still reopen the old Fermipy work
+area. Reuse may safely regenerate any sources whose old references cannot be
+verified. `Main/run_3ML_master.py` has its own `loopI_directory` setting; update it
+too if you move assets beyond the default repository location.
 
-On your machine, preparation checks catalog inclusion, frozen parameters,
-full-sky dimensions, energy coverage, model-map sum closure, energy-dispersion
-activation, and native-vs-explicit likelihood changes under normalization
-perturbations. Real LAT response generation has NOT been run in the authoring
-environment; Fermipy/Fermitools and your science data were unavailable.
+## What is in the `src` file? What happens when a model changes?
 
-## Sources
+There are several different source-related files:
 
-- https://fermipy.readthedocs.io/en/latest/_modules/fermipy/gtanalysis.html
-- https://fermipy.readthedocs.io/en/latest/_modules/fermipy/roi_model.html
-- https://fermi.gsfc.nasa.gov/ssc/data/access/lat/BackgroundModels.html
-- https://fermi.gsfc.nasa.gov/ssc/data/analysis/documentation/Pass8_edisp_usage.html
+| File | Contents |
+|---|---|
+| `fermipy/srcmdl_00.xml` | Source definitions for the LAT model: catalog point/extended sources and configured diffuse components. |
+| `fermipy/srcmap_00.fits` and numbered chunks | Response-dependent source maps for catalog **and diffuse** sources; not a point-source-only file. |
+| `templates.npz` | Full-sky counts, per-component predicted-count templates, fixed catalog contribution, energy grid, pixel coordinates, seed, and preparation metadata. |
+| [`Main/fermi_src_model.yaml`](../Main/fermi_src_model.yaml) | Saved 3ML model. The checked-in model includes catalog sources **and** GALPROP pion-decay, IC, and bremsstrahlung components with file paths. |
+
+The isotropic wrapper builds its model from **its own YAML**. It does not read
+`Main/fermi_src_model.yaml` or automatically discover model files in repository
+folders. `Main/run_3ML_master.py` loads that saved model by default
+(`make_src_model = False`) and adds its other components separately. Changing an
+isotropic YAML setting does not update this saved 3ML model. Rebuild or edit the
+3ML model and set the matching fitted amplitudes/input paths when switching
+GALPROP models in the main analysis.
+
+To use a new GALPROP cube, update the corresponding `galprop.<name>.file`, choose
+a new `outdir`, and run `prepare`/`run`. With compatible response settings,
+`reuse_from` preserves unchanged catalog/component maps and recalculates changed
+ones. `fit` alone never recalculates a changed GALPROP cube. Input cube size/mtime
+changes invalidate the fit cache; selective source reuse additionally uses
+content fingerprints. Do not edit science inputs while jobs are running or
+preserve their timestamps to bypass these checks.
+
+To include another diffuse component in the isotropic analysis, add it explicitly:
+
+```yaml
+additional_diffuse:
+  Bubbles:
+    file: /path/to/bubbles_intensity_mapcube.fits
+    free: true
+    normalization: 1.0
+```
+
+This must be a **3D differential-intensity mapcube** with celestial WCS and an
+`ENERGIES` table in MeV, covering the analysis plus energy-dispersion margins.
+The 2D morphology maps in [`Bubbles_Model/`](../Bubbles_Model/) need a physical
+spectrum and conversion to such a cube before use here. The isotropic config
+currently excludes a longitude band using the mask and does not include a
+Bubbles source by default. A new bubble file is not picked up automatically just
+because it exists. Add/update it and prepare a new output as above. Sun and Moon
+likewise enter through explicit `additional_diffuse` paths; regenerate their
+time-dependent templates when the observation/response settings change. Do not
+also add `LoopI`, `LoopI_S1`, or `LoopI_S2` there when using integrated `loopI`.
+
+| Change | Required action |
+|---|---|
+| Mask or diffuse fixed/free/amplitude controls | `fit`, then `plot`, using the same prepared output. |
+| Plot bands or display resolution | `plot` only. |
+| Analytic Loop I parameters or analytic spectral family | `fit`, then `plot` using the same power-law seed preparation. |
+| Empirical ↔ analytic Loop I; combined ↔ separate; add/remove a component | New `outdir`, `prepare` then `fit`/`plot`; compatible LAT products may be reused. |
+| Input cube/path, Loop I assets, isotropic reference, or extrapolation settings | New `outdir` and preparation. |
+| Data, time/energy selection, pixelization, event class/type, IRF, or edisp settings | New `outdir`, fresh preparation without `reuse_from`. |
+
+## Fit conventions, mask, and plotting
+
+The example config uses 300–100000 MeV, 8 bins/decade, `hpx_order: 8`
+(NSIDE=256), and `edisp_bins: auto` (resolved to -2 for these settings).
+`binsz` is bookkeeping in this HEALPix analysis; `hpx_order` sets the sky grid.
+For a cheaper native smoke test, use order 6 and a separate output, then check
+angular convergence before interpreting the science result.
+
+The mask retains |b| >= 30 degrees and |dec| <= 90 degrees and removes the region
+|wrapped l| <= 45 degrees, |b| <= 90 degrees in the shipped config. Preparation
+remains full-sky so response folding precedes masking. The likelihood and count
+spectrum use **retained pixels**, not the full sky. The GC-centred 40°×40° region
+is excluded by this mask. The Loop I overlap figure shows that rectangle only as
+a diagnostic; it does not select the fit region. Predictions outside the mask
+are extrapolations. `plots.bands_MeV` changes map energy bands, not the fit ROI.
+
+GALPROP and additional diffuse normalizations are global across energies:
+`free: false` freezes the supplied multiplier; `free: true` fits it. Uncertainty
+in fixed components is not propagated. All catalog parameters remain fixed.
+The isotropic reference is generated internally (default example index -2.0),
+with a free nonnegative amplitude in each energy bin. Rescaling its arbitrary
+reference intensity inversely rescales those amplitudes, preserving fitted
+physical intensity. The reference index determines the within-bin shape.
+
+The result is an **effective isotropic background**, including residual charged
+particles. Energy dispersion is disabled for `isodiff` and enabled for other
+components. Keep it disabled when reusing `isotropic_spectrum.txt`. Intensities
+are per sr per MeV: do not multiply by 4π or the retained solid angle to use the
+file as an isotropic intensity spectrum.
+
+GALPROP padding can extend boundary spectra within the explicitly configured
+`galprop_extrapolation` limits; originals are preserved and decisions are recorded
+in `galprop_extrapolation.json`. Additional diffuse cubes are validated for energy
+coverage but are not padded automatically. `edisp_bins: auto` uses positive
+spatial-map mixing below 100 MeV (+4 at 20 MeV with 8 bins/decade). Low-energy
+response/data validity still needs checking in the installed LAT environment.
+
+## Results and diagnostics
+
+Preparation writes `templates.npz`, `fermipy_config.yaml`,
+`preparation_checks.json`, `source_fingerprints.json`, `isotropic_seed_used.txt`,
+and native products under `fermipy/`. Reuse also writes `reuse_report.json`.
+
+Fits write `bestfit_<hash>/` by default or `fit_<hash>/` with
+`compute_profiles: true`. The hash identifies fit settings; changing only plot
+options does not create a new fit. Useful outputs are:
+
+| Output | Meaning |
+|---|---|
+| `isotropic_bins.csv` | Bin intensities, counts, deviance, and profile results when requested. |
+| `diffuse_normalizations.json` | All fitted/fixed diffuse multipliers. GALPROP and additional components also have separate JSON summaries. |
+| `best_fit_parameters.npz`, `covariance.npz` | Amplitude checkpoint, covariance, and parameter order. |
+| `fit_report.json` | Configuration, fit convention, mask area, and validation/uncertainty information. |
+| `diagnostics.npz` | Full-sky counts and fitted predictions with the retained mask. |
+| `loopI_spectral_fit.json` | Analytic shape results and native response checks, when applicable. |
+| `loopI_spectrum.txt` or `loopI_s1_spectrum.txt`/`loopI_s2_spectrum.txt`; `loopI_correlations.json` | Spectral coefficients and amplitude correlations. Each coefficient multiplies its corresponding spatial map; it is not that shell's sky-mean intensity. |
+| `isotropic_spectrum.png/.pdf`, `counts_spectrum.png` | Intensity spectrum and retained-sky component count spectra. |
+| `residuals_<band>.png`, `plot_bands.txt` | Unsmoothed residual maps and actual whole-bin energy coverage. Excluded pixels are gray; Pearson residuals are not TS significances. |
+
+With `compute_profiles: false`, profile intervals, upper limits, and TS in the
+CSV are NaN; the saved Hessian covariance is separate. With profiles enabled,
+all other free amplitudes are reoptimized for each interval. Free Loop I shape
+parameters currently preclude this profiling mode.
+
+`isotropic_spectrum.txt` is exported when every best-fit intensity is positive;
+with profiles enabled it additionally requires TS >= 4 in every bin and valid
+covariance. Its absence is therefore not necessarily an I/O failure. Check the
+CSV and report. The text spectrum interpolates bin-centre values; its stated
+valid range is the first to last bin **centre**, not the full bin-edge range.
+`Main/run_3ML_master.py` currently extrapolates endpoint slopes when its requested
+range is wider, so inspect that choice when transferring a fit. Set its spectrum
+path and fixed Sun/Moon/Loop I amplitudes to the outputs of the matching run.
+The main script currently loads **empirical** Loop I cubes. After an analytic
+Loop I fit, transfer the fitted spectral shape as well; applying those amplitudes
+to the empirical cubes alone would use a different model.
+
+## Validation and remaining environment requirements
+
+See [`VALIDATION.txt`](VALIDATION.txt) for the commands actually run. Synthetic
+checks cover the joint Poisson optimizer, profiles, mask, covariance/boundaries,
+reference normalization, cached export/plots, full-resolution Loop I cube build,
+shell sums and analytic seeds, path overrides, duplicate YAML rejection, cache
+invalidation, selective source-map reuse, sparse-map handling, and solar GTIs.
+
+Real LAT preparation and analytic shape fits additionally check source inclusion,
+full-sky geometry, model sum closure, and native-versus-explicit likelihood
+changes. They require the installed Fermipy/Fermitools and your data; the local
+checks do not establish instrument calibration or validate a scientific fit.
+
+The repository's `Main/` driver and Slurm scripts remain site-specific analysis
+scripts: review external paths, output locations, environment activation, and
+fitted amplitudes before execution. The main driver uses custom `GalpropMap` and
+`FermipyLike` behavior supplied by your installed 3ML/astromodels environment.
+`Sun_and_Moon/fit_isotropic.py` is a compatibility entry point to this maintained
+driver; use `Isotropic/fit_isotropic.py` for new commands. The solar template
+generator and its Slurm instructions live in [`Sun_and_Moon/`](../Sun_and_Moon/).

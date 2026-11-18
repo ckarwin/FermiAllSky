@@ -4,7 +4,25 @@ import json
 import numpy as np
 from spectral_core import parse_models
 
-ASSETS=Path(__file__).resolve().parent/'LoopI'
+ASSETS=Path(__file__).resolve().parents[1]/'LoopI'
+
+
+def asset_directory(settings):
+    """Default assets live beside Isotropic; read_config resolves overrides."""
+    return Path(settings.get('directory',ASSETS))
+
+
+def input_files(c):
+    """Inputs underlying the prepared cube and the exported spectral coefficient."""
+    s=c.get('loopI',{})
+    if not s.get('enabled',False): return []
+    assets=asset_directory(s)
+    suffix='empirical' if s['spectrum']=='empirical' else 'powerlaw_seed'
+    files=[assets/f'loopI_{suffix}_mapcube.fits',assets/'model_metadata.json']
+    if s['spectrum']=='empirical': files.append(assets/'empirical_intensity.txt')
+    if s.get('mode','combined')=='separate':
+        files += [assets/f'loopI_{name}_spatial.fits' for name in ('combined','S1','S2')]
+    return files
 
 def source_specs(c):
     """Active source names and independent normalization controls."""
@@ -19,7 +37,7 @@ def source_specs(c):
 def configure(c):
     if 'loopI' not in c: return
     s=dict(c['loopI'])
-    allowed={'enabled','mode','spectrum','free_norm','normalization','parameters','shells'}
+    allowed={'enabled','mode','spectrum','free_norm','normalization','parameters','shells','directory'}
     if set(s)-allowed: raise ValueError('Unknown loopI options: '+str(set(s)-allowed))
     s.setdefault('enabled',True); s.setdefault('spectrum','empirical'); s.setdefault('free_norm',False); s.setdefault('normalization',1.)
     # Missing mode preserves the original combined-component configuration/cache.
@@ -51,16 +69,16 @@ def configure(c):
         suffix='powerlaw_seed'
     for name,q in source_specs(c).items():
         filename=f'loopI_{suffix}_mapcube.fits' if name=='LoopI' else f'loopI_{name.split("_")[-1]}_{suffix}_mapcube.fits'
-        c['additional_diffuse'][name]={'file':str(ASSETS/filename),'free':q['free_norm'],'normalization':q['normalization']}
+        c['additional_diffuse'][name]={'file':str(asset_directory(s)/filename),'free':q['free_norm'],'normalization':q['normalization']}
 
 
-def spatial_integral(name):
+def spatial_integral(name,assets=ASSETS):
     """Solid-angle integral of the dimensionless map, in sr."""
-    meta=json.loads((ASSETS/'model_metadata.json').read_text())
+    meta=json.loads((assets/'model_metadata.json').read_text())
     if name=='LoopI': return meta['allsky_map_integral_sr']
     from astropy.io import fits
     from astropy.wcs import WCS
-    with fits.open(ASSETS/f'loopI_{name.split("_")[-1]}_spatial.fits') as h:
+    with fits.open(assets/f'loopI_{name.split("_")[-1]}_spatial.fits') as h:
         a=np.asarray(h[0].data,float); w=WCS(h[0].header).celestial
         yy,xx=np.indices(a.shape); _,b=w.all_pix2world(xx,yy,0)
         dx,dy=abs(w.wcs.cdelt[0]),abs(w.wcs.cdelt[1])
@@ -69,9 +87,10 @@ def spatial_integral(name):
 
 
 def analytic_model(s,name='LoopI'):
-    meta=json.loads((ASSETS/'model_metadata.json').read_text())
+    assets=asset_directory(s)
+    meta=json.loads((assets/'model_metadata.json').read_text())
     raw={'model':s['spectrum'],'seed_index':meta['seed_index'],
-         'seed_flux':meta['intensity_at_1000_MeV']*spatial_integral(name),
+         'seed_flux':meta['intensity_at_1000_MeV']*spatial_integral(name,assets),
          'pivot_MeV':1000.,'parameters':s.get('parameters',{})}
     return parse_models({name:raw})[name]
 
@@ -83,14 +102,21 @@ def ensure_cubes(c):
     amplitudes equals the combined model, rather than normalizing each to one.
     """
     s=c.get('loopI',{})
-    if not s.get('enabled',False) or s.get('mode','combined')!='separate': return
+    if not s.get('enabled',False): return
     from astropy.io import fits
     import os,tempfile
     suffix='empirical' if s['spectrum']=='empirical' else 'powerlaw_seed'
-    base=ASSETS/f'loopI_{suffix}_mapcube.fits'
-    combined=ASSETS/'loopI_combined_spatial.fits'
+    assets=asset_directory(s)
+    base=assets/f'loopI_{suffix}_mapcube.fits'
+    combined=assets/'loopI_combined_spatial.fits'
+    missing=[str(p) for p in input_files(c) if not p.is_file()]
+    if missing:
+        raise FileNotFoundError('Missing Loop I assets: '+', '.join(missing)+
+            '. Run LoopI/build_templates.py --config <isotropic-config.yaml> --outdir '+str(assets)+
+            ' before prepare (see Isotropic/README.md).')
+    if s.get('mode','combined')!='separate': return
     for name in source_specs(c):
-        shell=name.split('_')[-1]; spatial=ASSETS/f'loopI_{shell}_spatial.fits'
+        shell=name.split('_')[-1]; spatial=assets/f'loopI_{shell}_spatial.fits'
         target=Path(c['additional_diffuse'][name]['file'])
         if target.exists() and target.stat().st_mtime_ns>=max(p.stat().st_mtime_ns for p in (base,combined,spatial)): continue
         print('Generating separate Loop I input cube:',target,flush=True)
@@ -101,7 +127,7 @@ def ensure_cubes(c):
             data=np.empty(h[0].data.shape,dtype='float32')
             for k,plane in enumerate(h[0].data): data[k]=plane*frac
             hdul=fits.HDUList([fits.PrimaryHDU(data,header),h['ENERGIES'].copy()])
-            fd,tmp=tempfile.mkstemp(prefix='loopI_build_',suffix='.fits',dir=ASSETS); os.close(fd)
+            fd,tmp=tempfile.mkstemp(prefix='loopI_build_',suffix='.fits',dir=target.parent); os.close(fd)
             try:
                 hdul.writeto(tmp,overwrite=True); os.replace(tmp,target)
             finally:
@@ -164,14 +190,15 @@ def optimize_templates(c,z,keep,driver,output):
 def export_spectrum(c,energies,normalizations,spectral_report,output):
     if not c.get('loopI',{}).get('enabled',False): return
     from spectral_core import ratio
-    s=c['loopI']; norms={r['name']:r['normalization'] for r in normalizations}
+    s=c['loopI']; assets=asset_directory(s)
+    norms={r['name']:r['normalization'] for r in normalizations}
     if s['spectrum']=='empirical':
-        table=np.loadtxt(ASSETS/'empirical_intensity.txt')
+        table=np.loadtxt(assets/'empirical_intensity.txt')
         values=np.exp(np.interp(np.log(energies),np.log(table[:,0]),np.log(table[:,1])))
     else:
-        meta=json.loads((ASSETS/'model_metadata.json').read_text())
+        meta=json.loads((assets/'model_metadata.json').read_text())
         model=next(iter(spectral_report['models'].values()))
-        values=meta['intensity_at_1000_MeV']*(energies/1000.)**-2.4*ratio(energies,model)
+        values=meta['intensity_at_1000_MeV']*(energies/1000.)**(-model['seed_index'])*ratio(energies,model)
     for name in source_specs(c):
         np.savetxt(output/f'{name.lower().replace("loopi","loopI")}_spectrum.txt',np.c_[energies,norms[name]*values],
             header=f'Energy_MeV spectral_coefficient_ph_cm-2_s-1_sr-1_MeV-1; multiply by corresponding {name} spatial contribution; NOT its own sky-mean intensity')
