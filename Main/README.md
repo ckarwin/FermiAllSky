@@ -139,6 +139,8 @@ In the Fermipy working directory (`fermipy_outdir`):
 
 In the current directory: `GCE_Ajello2016_comparison.pdf` (when `include_dm = True`).
 
+To plot spectra and maps of these results by component, see [`Plots/`](../Plots/README.md).
+
 ## Comparing the GCE with Ajello et al. (2016)
 
 With `include_dm = True`, the script finishes by plotting the fitted GCE

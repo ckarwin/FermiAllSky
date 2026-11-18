@@ -8,7 +8,8 @@ The repository has two kinds of folders. The **model folders** hold
 templates for individual emission components, together with the scripts that
 make them. They are built once and then reused, and new models can be added
 to them at any time. The **analysis folders** run the fits that use those
-templates. Each folder has its own guide:
+templates, and [`Plots/`](Plots/README.md) makes figures of the results. Each
+folder has its own guide:
 
 | Folder | Type | What it contains / does | Main products |
 |---|---|---|---|
@@ -18,6 +19,7 @@ templates. Each folder has its own guide:
 | [`Bubbles_Model/`](Bubbles_Model/README.md) | Model | Low- and high-latitude Fermi-bubble spatial templates | `bubbles_*.fits` |
 | [`Isotropic/`](Isotropic/README.md) | Analysis | Masked all-sky fit with GALPROP diffuse emission, 4FGL catalog sources, Sun, Moon and Loop I: measures the isotropic spectrum and the diffuse and foreground normalizations | `isotropic_spectrum.txt`, `diffuse_normalizations.json` |
 | [`Main/`](Main/README.md) | Analysis | Inner-Galaxy (40° × 40°) 3ML fit with GALPROP diffuse emission and 4FGL catalog sources, the all-sky results as fixed backgrounds, and optional Galactic-centre excess and Fermi bubbles | fitted parameters, model maps, GCE comparison plot |
+| [`Plots/`](Plots/README.md) | Plotting | Count spectra, flux spectra and sky maps (data, model, residuals) of the inner-Galaxy fit, by component | `counts_spectra.png`, `flux_spectra_*.png`, `residuals.png` |
 | [`tests/`](tests/) | — | Regression tests (`python -m pytest -q tests`) | — |
 
 How they connect:
@@ -32,6 +34,8 @@ How they connect:
 3. **Run the inner-Galaxy fit** (`Main/`). Its model contains the GALPROP
    diffuse emission and the 4FGL catalog sources, the all-sky results held
    fixed, and the GCE and bubble models.
+4. **Plot the results** (`Plots/`): spectra and maps of the data, the model and
+   each component.
 
 ## Typical workflow
 
@@ -62,6 +66,11 @@ python fit_isotropic.py run config.yaml
 # and the fitted Sun/Moon/Loop I normalizations (diffuse_normalizations.json).
 cd ../Main
 sbatch slurm.sh
+
+# --- 4. Plots ----------------------------------------------------------------
+# Set savename in each script to that of the fit (see Plots/README.md).
+cd ../Plots
+python make_counts_plot.py
 ```
 
 ## Adding a new model
@@ -85,6 +94,7 @@ point the analysis at it:
   [astromodels](https://github.com/ckarwin/astromodels/tree/diffuse-analysis),
   which provide the `FermipyLike` options and the `GalpropMap` mapcube source
   used there. Everything else uses only Fermipy/Fermitools.
+- For `Plots/`: the `lat_binned_analysis` module.
 - NumPy, SciPy, Astropy, Matplotlib and PyYAML for the utilities; pytest for the
   tests.
 
