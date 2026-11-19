@@ -1,0 +1,8 @@
+reference,region,region_solid_angle_sr,S1_share,mean_fit_over_published,ratio_band_MeV,n_points_in_ratio_band
+"Ackermann et al. 2014 (SCA template)","brightest 3 sr at |b| > 10° (assumed)",2.999942781550663,0.12590989429509883,0.28083123772703483,"300-30000",13
+"Ackermann et al. 2015, model A (Wolleben template)","|b| > 20°",8.268418735752508,0.2106484589141505,0.4652868093440671,"300-12800",10
+"Ackermann et al. 2015, model B (Wolleben template)","|b| > 20°",8.268418735752508,0.2106484589141505,0.4189765435344714,"300-12800",10
+"Ackermann et al. 2015, model C (Wolleben template)","|b| > 20°",8.268418735752508,0.2106484589141505,0.41140260916656235,"300-12800",10
+# all-sky results: example_allsky
+# ratio band [MeV]: 300-30000
+# range of mean ratios over references: 0.281-0.465

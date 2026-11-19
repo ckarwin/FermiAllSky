@@ -4,8 +4,8 @@ Scripts for plotting the analysis results:
 
 - **Inner-Galaxy fit** ([`Main/`](../Main/README.md)): count spectra, flux
   spectra and sky maps of the data, the model and the residuals, broken down by
-  model component, and a comparison of the fitted Fermi-bubble spectra with
-  published results.
+  model component, and comparisons of the fitted Fermi-bubble and Loop I
+  spectra with published results.
 - **All-sky fit** ([`Isotropic/`](../Isotropic/README.md)): comparison of
   isotropic spectra from different runs with the official LAT isotropic
   template.
@@ -50,6 +50,12 @@ Run them from this folder.
 Compares the fitted low- and high-latitude bubble spectra (from the flux files
 made by `plot_flux.py`) with Ackermann et al. (2017), Figure 9a, converted to
 the same 40° × 40° region. See [`compare_bubbles/README.md`](compare_bubbles/README.md).
+
+### `compare_loopI/`: Loop I spectrum vs. published results
+
+Compares the Loop I spectrum of the all-sky fit (`Isotropic/`, S1 + S2) with
+published Fermi-LAT Loop I spectra, each averaged over its own sky region. New
+published results are added as YAML files. See [`compare_loopI/README.md`](compare_loopI/README.md).
 
 ### `compare_isotropic.py`: isotropic spectra
 
@@ -111,6 +117,7 @@ with these tools (see the comment at the top of the script).
 | File | Purpose |
 |---|---|
 | `compare_bubbles/` | Fermi-bubble spectra vs. Ackermann et al. (2017) |
+| `compare_loopI/` | Loop I spectrum of the all-sky fit vs. published results |
 | `compare_isotropic.py` | Isotropic spectra of several all-sky runs vs. the official template |
 | `make_counts_plot.py` | Count spectra by component, with residuals |
 | `plot_flux.py` | Flux (E² dN/dE) spectra by component, with residuals |
