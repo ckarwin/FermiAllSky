@@ -36,7 +36,8 @@ FIT_LABEL = "This work"
 # Published results to plot: YAML files in reference/ (all of them by default).
 REFERENCE_FILES = sorted(REFERENCE_DIR.glob("*.yaml"))
 
-# Energy range used for the mean fit/published ratios [MeV].
+# Energy range used for the mean fit/published ratios [MeV]. A reference file
+# can narrow it with its own `ratio_band_mev`.
 RATIO_BAND_MEV = (300.0, 30000.0)
 
 # Template grid (same as LoopI/build_templates.py): full-sky CAR, 0.5 deg pixels.
@@ -185,17 +186,20 @@ def main():
             ], axis=0)
         fit_at_ref = interp_loglog(ref["energy"], energy, total)
         ratio = fit_at_ref / ref["e2_intensity"]
-        in_band = ((ref["energy"] >= RATIO_BAND_MEV[0]) & (ref["energy"] <= RATIO_BAND_MEV[1])
-                   & np.isfinite(ratio))
+        # A reference may narrow the band (e.g. to the energies where it was fitted).
+        lo_e, hi_e = ref.get("ratio_band_mev", RATIO_BAND_MEV)
+        lo_e, hi_e = max(lo_e, RATIO_BAND_MEV[0]), min(hi_e, RATIO_BAND_MEV[1])
+        in_band = (ref["energy"] >= lo_e) & (ref["energy"] <= hi_e) & np.isfinite(ratio)
         mean_ratio = float(np.exp(np.mean(np.log(ratio[in_band])))) if in_band.any() else np.nan
         curves.append(dict(ref=ref, total=total, parts=parts, band=band, ratio=ratio,
-                           fit_at_ref=fit_at_ref, mean_ratio=mean_ratio))
+                           fit_at_ref=fit_at_ref, mean_ratio=mean_ratio, band_mev=(lo_e, hi_e)))
         rows.append({
             "reference": ref["label"],
             "region": region_text(region),
             "region_solid_angle_sr": float(omega[mask].sum()),
             "S1_share": float(np.mean(parts[0] / total)) if len(parts) == 2 else np.nan,
             "mean_fit_over_published": mean_ratio,
+            "ratio_band_MeV": f"{lo_e:g}-{hi_e:g}",
             "n_points_in_ratio_band": int(in_band.sum()),
         })
 
@@ -219,25 +223,40 @@ def main():
             handle.write(f"# range of mean ratios over references: {finite.min():.3f}-{finite.max():.3f}\n")
 
     # --- Plot ---------------------------------------------------------------
-    # One fixed colour per published result; its points and the fit averaged
-    # over its region share that colour.
+    # Published results: one fixed colour and marker each. Points outside a
+    # result's own ratio band (e.g. not fitted bin by bin) are drawn hollow.
+    # The fit: one black curve per distinct region definition.
     colours = ["#d62728", "#1f77b4", "#2ca02c", "#9467bd", "#ff7f0e", "#8c564b", "#e377c2"]
     markers = ["o", "s", "^", "D", "v", "P", "X"]
+    styles = ["-", "--", "-.", ":"]
     fig, (ax, axr) = plt.subplots(2, 1, figsize=(7.5, 7.5), sharex=True,
                                   gridspec_kw={"height_ratios": [3, 1.2]})
+    drawn = {}
     for i, c in enumerate(curves):
-        ref, col = c["ref"], colours[i % len(colours)]
-        y, lo, hi = ref["e2_intensity"], ref["e2_intensity_low"], ref["e2_intensity_high"]
-        ax.errorbar(ref["energy"], y, yerr=[y - lo, hi - y], fmt=markers[i % len(markers)],
-                    color=col, ms=4.5, capsize=2, lw=1, label=ref["label"])
-        if c["band"] is not None:
-            ax.fill_between(energy, *c["band"], color=col, alpha=0.18, lw=0)
-        ax.plot(energy, c["total"], color=col, lw=1.8,
-                label=f"{FIT_LABEL}, {region_text(ref['region'])}")
-        rerr = [c["ratio"] - c["fit_at_ref"] / hi, c["fit_at_ref"] / lo - c["ratio"]]
-        axr.errorbar(ref["energy"], c["ratio"], yerr=rerr, fmt=markers[i % len(markers)],
-                     color=col, ms=3.5, capsize=2, lw=1)
-        axr.axhline(c["mean_ratio"], color=col, ls="--", lw=1)
+        ref, col, mk = c["ref"], colours[i % len(colours)], markers[i % len(markers)]
+        e, y, lo, hi = ref["energy"], ref["e2_intensity"], ref["e2_intensity_low"], ref["e2_intensity_high"]
+        rerr = np.array([c["ratio"] - c["fit_at_ref"] / hi, c["fit_at_ref"] / lo - c["ratio"]])
+        own = ref.get("ratio_band_mev", (0, np.inf))
+        inside = (e >= own[0]) & (e <= own[1])
+        for sel, face, label in ((inside, col, ref["label"]), (~inside, "white", None)):
+            if not sel.any():
+                continue
+            ax.errorbar(e[sel], y[sel], yerr=[(y - lo)[sel], (hi - y)[sel]], fmt=mk, color=col,
+                        mfc=face, ms=4.5, capsize=2, lw=1, label=label)
+            axr.errorbar(e[sel], c["ratio"][sel], yerr=rerr[:, sel], fmt=mk, color=col, mfc=face,
+                         ms=3.5, capsize=2, lw=1)
+        axr.hlines(c["mean_ratio"], *c["band_mev"], color=col, ls="--", lw=1)
+        key = region_text(ref["region"])
+        if key not in drawn:
+            ls = styles[len(drawn) % len(styles)]
+            drawn[key] = ls
+            if c["band"] is not None:
+                ax.fill_between(energy, *c["band"], color="0.6", alpha=0.3, lw=0)
+            ax.plot(energy, c["total"], color="k", ls=ls, lw=1.6, label=f"{FIT_LABEL}, {key}")
+    if any(np.any(np.asarray(c["ref"]["energy"]) > c["ref"].get("ratio_band_mev", (0, np.inf))[1])
+           for c in curves):
+        ax.plot([], [], "o", color="0.4", mfc="white", ms=4.5,
+                label="hollow: not fitted bin by bin in that paper")
     curve = np.loadtxt(LOOPI_DIR / "leptonic_curve.txt")
     ax.plot(curve[:, 0], curve[:, 2], color="0.5", lw=1, ls=":",
             label="Leptonic model of Ackermann et al. 2025 (shape used in the fit)")
@@ -254,8 +273,8 @@ def main():
     axr.set_yscale("log")
     axr.set_ylabel("fit / published")
     axr.set_xlabel("Energy [MeV]")
-    axr.text(0.01, 0.04, f"dashed: mean over {RATIO_BAND_MEV[0] / 1e3:g}–"
-             f"{RATIO_BAND_MEV[1] / 1e3:g} GeV", transform=axr.transAxes, fontsize=7.5, color="0.3")
+    axr.text(0.01, 0.04, "dashed: mean ratio over the energies it is computed for",
+             transform=axr.transAxes, fontsize=7.5, color="0.3")
     fig.tight_layout()
     fig.savefig(SCRIPT_DIR / "comparison.png", dpi=150)
     fig.savefig(SCRIPT_DIR / "comparison.pdf")
