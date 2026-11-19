@@ -40,6 +40,10 @@ REFERENCE_FILES = sorted(REFERENCE_DIR.glob("*.yaml"))
 # can narrow it with its own `ratio_band_mev`.
 RATIO_BAND_MEV = (300.0, 30000.0)
 
+# Y range of the ratio panel. Points outside (e.g. the steep high-energy tail)
+# are cut off.
+RATIO_YLIM = (0.1, 2.0)
+
 # Template grid (same as LoopI/build_templates.py): full-sky CAR, 0.5 deg pixels.
 PIXEL_DEG = 0.5
 
@@ -271,6 +275,10 @@ def main():
     ax.legend(fontsize=7, loc="lower left")
     axr.axhline(1, color="0.3", lw=0.8)
     axr.set_yscale("log")
+    axr.set_ylim(*RATIO_YLIM)
+    axr.yaxis.set_major_formatter(plt.FuncFormatter(lambda v, _: f"{v:g}"))
+    axr.yaxis.set_minor_formatter(plt.FuncFormatter(
+        lambda v, _: f"{v:g}" if round(v, 3) in (0.2, 0.3, 0.5, 2.0) else ""))
     axr.set_ylabel("fit / published")
     axr.set_xlabel("Energy [MeV]")
     axr.text(0.01, 0.04, "dashed: mean ratio over the energies it is computed for",
