@@ -53,9 +53,9 @@ the same 40° × 40° region. See [`compare_bubbles/README.md`](compare_bubbles/
 
 ### `compare_loopI/`: Loop I spectrum vs. published results
 
-Compares the fitted Loop I spectrum (S1 + S2, from the flux files made by
-`plot_flux.py`) with the Fermi-LAT Loop I intensity at |b| > 10° shown in
-Ackermann et al. (2025), Figure 3. See [`compare_loopI/README.md`](compare_loopI/README.md).
+Compares the Loop I spectrum of the all-sky fit (`Isotropic/`, S1 + S2) with
+published Fermi-LAT Loop I spectra, each averaged over its own sky region. New
+published results are added as YAML files. See [`compare_loopI/README.md`](compare_loopI/README.md).
 
 ### `compare_isotropic.py`: isotropic spectra
 
@@ -117,7 +117,7 @@ with these tools (see the comment at the top of the script).
 | File | Purpose |
 |---|---|
 | `compare_bubbles/` | Fermi-bubble spectra vs. Ackermann et al. (2017) |
-| `compare_loopI/` | Loop I spectrum vs. Ackermann et al. (2025) |
+| `compare_loopI/` | Loop I spectrum of the all-sky fit vs. published results |
 | `compare_isotropic.py` | Isotropic spectra of several all-sky runs vs. the official template |
 | `make_counts_plot.py` | Count spectra by component, with residuals |
 | `plot_flux.py` | Flux (E² dN/dE) spectra by component, with residuals |

@@ -1,4 +1,4 @@
-"""Re-create fig3_loopI_points.yaml from the published figure (not normally needed).
+"""Re-create ackermann2014.yaml from the published figure (not normally needed).
 
     python extract_fig3_points.py /path/to/paper.pdf
 
@@ -74,6 +74,18 @@ def main(pdf_path):
     rows = np.array(rows)
 
     out = {
+        "label": "Ackermann et al. 2014 (SCA template)",
+        "citation": "Ackermann et al. 2014, ApJ 793, 64 (Fig. 15); as replotted in Ackermann, "
+        "Malyshev & Malyshev 2025, Space Sci. Rev. 221:92, Fig. 3 (right)",
+        "template": "Data-derived Loop I template (spectral component analysis, 1 sigma threshold)",
+        "region": {
+            "type": "footprint",
+            "b_min_deg": 10.0,
+            "solid_angle_sr": 3.0,
+            "solid_angle_range_sr": [2.5, 3.5],
+            "note": "Mean intensity over the Loop I template at |b| > 10 deg. The template area "
+            "(about 3 sr) is inferred from Ackermann et al. 2025; it is not stated in the 2014 paper.",
+        },
         "source": "Figure 3 (right), red circles, of Ackermann, Malyshev & Malyshev, "
         "Space Sci. Rev. 221:92 (2025), doi:10.1007/s11214-025-01215-0; data from "
         "Ackermann et al. 2014, ApJ 793, 64",
@@ -86,8 +98,8 @@ def main(pdf_path):
         "e2_intensity_low": rows[:, 2].tolist(),
         "e2_intensity_high": rows[:, 3].tolist(),
     }
-    (HERE / "fig3_loopI_points.yaml").write_text(yaml.safe_dump(out, sort_keys=False))
-    print(f"Wrote {len(rows)} points to {HERE / 'fig3_loopI_points.yaml'}")
+    (HERE / "ackermann2014.yaml").write_text(yaml.safe_dump(out, sort_keys=False))
+    print(f"Wrote {len(rows)} points to {HERE / 'ackermann2014.yaml'}")
 
 
 if __name__ == "__main__":

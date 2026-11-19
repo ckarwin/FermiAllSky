@@ -1,6 +1,5 @@
-paper_solid_angle_sr,3.0
-footprint_north_fraction,0.7765157339162154
-S1_share_of_footprint_intensity,0.12686027958360163
-mean_fit_over_paper,0.2819916536301053
-mean_fit_over_paper_total_flux_definition,0.310573459438067
-ratio_band_MeV,[300.0, 30000.0]
+reference,region,region_solid_angle_sr,S1_share,mean_fit_over_published,n_points_in_ratio_band
+"Ackermann et al. 2014 (SCA template)","brightest 3 sr at |b| > 10° (assumed)",2.999942781550663,0.12590989429509883,0.28083123772703483,13
+# all-sky results: example_allsky
+# ratio band [MeV]: 300-30000
+# range of mean ratios over references: 0.281-0.281

@@ -1,8 +1,20 @@
-source: Figure 3 (right), red circles, of Ackermann, Malyshev & Malyshev, Space Sci.
-  Rev. 221:92 (2025), doi:10.1007/s11214-025-01215-0; data from Ackermann et al. 2014,
-  ApJ 793, 64
-comment: Loop I intensity at |b| > 10 deg (Fermi-LAT). Read from the PDF vector graphics
-  (marker centres and error-bar ends); not an author-supplied table.
+label: Ackermann et al. 2014 (SCA template)
+citation: Ackermann et al. 2014, ApJ 793, 64 (Fig. 15); as replotted in Ackermann, Malyshev & Malyshev
+  2025, Space Sci. Rev. 221:92, Fig. 3 (right)
+template: Data-derived Loop I template (spectral component analysis, 1 sigma threshold)
+region:
+  type: footprint
+  b_min_deg: 10.0
+  solid_angle_sr: 3.0
+  solid_angle_range_sr:
+  - 2.5
+  - 3.5
+  note: Mean intensity over the Loop I template at |b| > 10 deg. The template area (about 3 sr) is inferred
+    from Ackermann et al. 2025; it is not stated in the 2014 paper.
+source: Figure 3 (right), red circles, of Ackermann, Malyshev & Malyshev, Space Sci. Rev. 221:92 (2025),
+  doi:10.1007/s11214-025-01215-0; data from Ackermann et al. 2014, ApJ 793, 64
+comment: Loop I intensity at |b| > 10 deg (Fermi-LAT). Read from the PDF vector graphics (marker centres
+  and error-bar ends); not an author-supplied table.
 energy_unit: MeV
 data_unit: MeV cm^-2 s^-1 sr^-1 (E^2 dN/dE per steradian)
 energy:

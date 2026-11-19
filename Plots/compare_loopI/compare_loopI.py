@@ -1,8 +1,12 @@
-"""Compare the fitted Loop I spectrum with the Fermi-LAT points in Ackermann et al. (2025), Fig. 3.
+"""Compare the Loop I spectrum of the all-sky fit with published Fermi-LAT results.
 
 Run: python compare_loopI.py
 Requires: numpy, matplotlib, pyyaml (and LoopI/shell_geometry.py from this repository).
 Edit the settings below to compare a different fit. See README.md.
+
+The fitted Loop I sky is rebuilt from the per-shell spectra written by the
+all-sky fit (Isotropic/), then averaged over the region that each published
+result refers to. Each published result is one YAML file in reference/.
 """
 
 import sys
@@ -22,29 +26,25 @@ from shell_geometry import SHELLS, path_length  # noqa: E402
 # Settings
 # ---------------------------------------------------------------------------
 
-# Loop I S1 and S2 flux files written by Plots/plot_flux.py for your fit
-# (E^2 dF/dE summed over the analysis region). Relative to this folder.
-S1_FLUX_FILE = "loopI_SI_flux.dat"
-S2_FLUX_FILE = "loopI_S2_flux.dat"
-FIT_LABEL = "This fit (S1 + S2)"
+# Results folder of the all-sky fit (Isotropic/<outdir>/bestfit_<hash> or
+# fit_<hash>). It must contain loopI_s1_spectrum.txt and loopI_s2_spectrum.txt
+# (Loop I mode "separate") or loopI_spectrum.txt (mode "combined"). Relative
+# paths are taken from this folder; absolute paths also work.
+ALLSKY_RESULTS_DIR = "example_allsky"
+FIT_LABEL = "This work"
 
-# Analysis region of the fit (Galactic, deg): |l| <= ROI_HALF_WIDTH_DEG and
-# |b| <= ROI_HALF_WIDTH_DEG around the Galactic centre.
-ROI_HALF_WIDTH_DEG = 20.0
+# Published results to plot: YAML files in reference/ (all of them by default).
+REFERENCE_FILES = sorted(REFERENCE_DIR.glob("*.yaml"))
 
-# The published intensity is the Loop I intensity at |b| > 10 deg, averaged
-# over the area of Loop I, which the paper gives as about 3 sr. The fitted
-# model is averaged over the brightest PAPER_SOLID_ANGLE_SR of its own sky at
-# |b| > LATITUDE_CUT_DEG; SOLID_ANGLE_RANGE_SR gives the band in the plot.
-LATITUDE_CUT_DEG = 10.0
-PAPER_SOLID_ANGLE_SR = 3.0
-SOLID_ANGLE_RANGE_SR = (2.5, 3.5)
-
-# Energy range used for the mean fit/paper ratio [MeV].
+# Energy range used for the mean fit/published ratios [MeV].
 RATIO_BAND_MEV = (300.0, 30000.0)
 
 # Template grid (same as LoopI/build_templates.py): full-sky CAR, 0.5 deg pixels.
 PIXEL_DEG = 0.5
+
+# Reference region of the Loop I templates: the summed S1 + S2 map averages to
+# 1 over all longitudes at |b| > TEMPLATE_REFERENCE_B_DEG (LoopI/build_templates.py).
+TEMPLATE_REFERENCE_B_DEG = 10.0
 
 
 # ---------------------------------------------------------------------------
@@ -52,24 +52,49 @@ PIXEL_DEG = 0.5
 # ---------------------------------------------------------------------------
 
 
-def load_paper_points():
-    """Published Loop I points: energy [MeV], E^2 I and its 1-sigma range [MeV cm^-2 s^-1 sr^-1]."""
-    data = yaml.safe_load((REFERENCE_DIR / "fig3_loopI_points.yaml").read_text())
-    return (np.array(data["energy"]), np.array(data["e2_intensity"]),
-            np.array(data["e2_intensity_low"]), np.array(data["e2_intensity_high"]))
+def load_reference(path):
+    """One published result: metadata plus energy [MeV], E^2 I and its 1-sigma range."""
+    data = yaml.safe_load(Path(path).read_text())
+    for key in ("energy", "e2_intensity", "e2_intensity_low", "e2_intensity_high"):
+        data[key] = np.asarray(data[key], float)
+    return data
 
 
-def load_fit_spectrum(filename):
-    """Read a plot_flux.py file: energy [MeV] and E^2 dF/dE [MeV cm^-2 s^-1] in the region."""
-    data = np.loadtxt(SCRIPT_DIR / filename, comments="#", skiprows=3)
-    return data[:, 0], data[:, 1]
+def load_fit_spectra(results_dir):
+    """Per-shell spectral coefficients from the all-sky fit.
+
+    Returns (energy [MeV], coefficients[n_shell_terms, n_energy], weights) where
+    the fitted Loop I intensity is sum_k coefficient_k(E) * template_k(l, b)
+    [ph cm^-2 s^-1 sr^-1 MeV^-1], and template_k is S1, S2 or S1 + S2 (rows of
+    `weights` select the shells that each term multiplies).
+    """
+    results_dir = Path(results_dir)
+    if not results_dir.is_absolute():
+        results_dir = SCRIPT_DIR / results_dir
+    separate = [results_dir / f"loopI_s{i}_spectrum.txt" for i in (1, 2)]
+    combined = results_dir / "loopI_spectrum.txt"
+    if all(p.is_file() for p in separate):
+        tables = [np.loadtxt(p) for p in separate]
+        weights = np.eye(2)
+    elif combined.is_file():
+        tables = [np.loadtxt(combined)]
+        weights = np.ones((1, 2))
+    else:
+        raise FileNotFoundError(
+            f"No Loop I spectrum files in {results_dir}: expected loopI_s1_spectrum.txt and "
+            "loopI_s2_spectrum.txt, or loopI_spectrum.txt (written by Isotropic/fit_isotropic.py)"
+        )
+    energy = tables[0][:, 0]
+    if not all(np.allclose(t[:, 0], energy) for t in tables):
+        raise ValueError("Loop I spectrum files must use the same energies")
+    return energy, np.array([t[:, 1] for t in tables]), weights
 
 
-def shell_maps():
-    """Line-of-sight path length through S1 and S2 on a full-sky grid.
+def shell_templates():
+    """S1 and S2 templates exactly as LoopI/build_templates.py makes them.
 
-    Returns (maps[2, nb, nl], l, b, pixel solid angle). The absolute scale is
-    irrelevant here: only ratios of integrals of each map are used.
+    Returns (templates[2, nb, nl], l, b, pixel solid angle): line-of-sight
+    path lengths, scaled so that S1 + S2 averages to 1 over |b| > 10 deg.
     """
     nb, nl = int(round(180 / PIXEL_DEG)), int(round(360 / PIXEL_DEG))
     b = (np.arange(nb) - (nb - 1) / 2) * PIXEL_DEG
@@ -78,44 +103,43 @@ def shell_maps():
     l = (l + 180) % 360 - 180
     half = np.deg2rad(PIXEL_DEG / 2)
     omega = np.deg2rad(PIXEL_DEG) * (np.sin(np.deg2rad(b) + half) - np.sin(np.deg2rad(b) - half))
-    maps = np.array([path_length(l, b, shell) for shell in SHELLS])
-    return maps, l, b, omega
+    raw = np.array([path_length(l, b, shell) for shell in SHELLS])
+    ref = np.abs(b) > TEMPLATE_REFERENCE_B_DEG
+    scale = np.sum(raw.sum(axis=0)[ref] * omega[ref]) / omega[ref].sum()
+    return raw / scale, l, b, omega
 
 
 # ---------------------------------------------------------------------------
-# Conversion of the fit to the paper's quantity
+# Fitted Loop I averaged over a published region
 # ---------------------------------------------------------------------------
 
 
-def paper_footprint(weights, maps, b, omega, solid_angle):
-    """Pixels forming the brightest `solid_angle` sr of the fitted Loop I map at |b| > cut.
+def region_pixels(region, solid_angle, fitted_map, b, omega):
+    """Boolean pixel mask for a published region definition.
 
-    The fitted map is weights[0] * S1 + weights[1] * S2 (the shells share one
-    spectrum, so its shape does not depend on energy).
+    * ``latitude``: all longitudes at |b| > b_min_deg.
+    * ``footprint``: the brightest `solid_angle` sr of the fitted Loop I map at
+      |b| > b_min_deg, standing in for a published Loop I template area.
     """
-    model = np.tensordot(weights, maps, axes=1)
-    candidates = np.flatnonzero(np.abs(b) > LATITUDE_CUT_DEG)
-    order = candidates[np.argsort(model.ravel()[candidates])[::-1]]
+    high = np.abs(b) > region["b_min_deg"]
+    if region["type"] == "latitude":
+        return high
+    if region["type"] != "footprint":
+        raise ValueError(f"Unknown region type {region['type']!r}")
+    candidates = np.flatnonzero(high)
+    order = candidates[np.argsort(fitted_map.ravel()[candidates])[::-1]]
     keep = order[np.cumsum(omega.ravel()[order]) <= solid_angle]
-    footprint = np.zeros(model.size, bool)
-    footprint[keep] = True
-    return footprint.reshape(model.shape)
+    mask = np.zeros(fitted_map.size, bool)
+    mask[keep] = True
+    return mask.reshape(fitted_map.shape)
 
 
-def fit_to_paper(e2f_roi, maps, roi, footprint, omega):
-    """Convert region fluxes of S1 and S2 to the mean intensity over the footprint.
-
-    For each shell i, the fitted intensity map is k_i(E) * map_i, with
-    k_i = (region flux of shell i) / (integral of map_i over the region). The
-    result is the mean of sum_i k_i * map_i over the footprint, per shell and in
-    total [MeV cm^-2 s^-1 sr^-1].
-    """
-    area = omega[footprint].sum()
-    parts = []
-    for flux, shell in zip(e2f_roi, maps):
-        k = flux / (shell * omega)[roi].sum()
-        parts.append(k * (shell * omega)[footprint].sum() / area)
-    return np.array(parts)
+def mean_intensity(energy, coefficients, term_maps, mask, omega):
+    """E^2 x mean fitted intensity over `mask`, per term and in total [MeV cm^-2 s^-1 sr^-1]."""
+    area = omega[mask].sum()
+    means = np.array([(m * omega)[mask].sum() / area for m in term_maps])
+    parts = energy**2 * coefficients * means[:, None]
+    return parts, parts.sum(axis=0)
 
 
 def interp_loglog(x, xp, fp):
@@ -124,100 +148,120 @@ def interp_loglog(x, xp, fp):
     return np.where((x >= xp[0]) & (x <= xp[-1]), out, np.nan)
 
 
+def region_text(region):
+    """Short plot label for a region definition."""
+    if region["type"] == "latitude":
+        return f"|b| > {region['b_min_deg']:g}°"
+    return f"brightest {region['solid_angle_sr']:g} sr at |b| > {region['b_min_deg']:g}° (assumed)"
+
+
 # ---------------------------------------------------------------------------
 # Main
 # ---------------------------------------------------------------------------
 
 
 def main():
-    paper_e, paper_y, paper_lo, paper_hi = load_paper_points()
-    e1, f1 = load_fit_spectrum(S1_FLUX_FILE)
-    e2, f2 = load_fit_spectrum(S2_FLUX_FILE)
-    if not np.allclose(e1, e2):
-        raise ValueError("S1 and S2 flux files must use the same energies")
+    energy, coefficients, weights = load_fit_spectra(ALLSKY_RESULTS_DIR)
+    shells, l, b, omega = shell_templates()
+    term_maps = np.tensordot(weights, shells, axes=1)
+    # Map used to rank pixels for "footprint" regions. All terms share one
+    # spectral shape, so the band-summed coefficients give the map's shape.
+    fitted_map = np.tensordot((coefficients * energy**2).sum(axis=1), term_maps, axes=1)
+    references = [load_reference(p) for p in REFERENCE_FILES]
+    if not references:
+        raise FileNotFoundError(f"No reference YAML files in {REFERENCE_DIR}")
 
-    maps, l, b, omega = shell_maps()
-    roi = (np.abs(l) <= ROI_HALF_WIDTH_DEG) & (np.abs(b) <= ROI_HALF_WIDTH_DEG)
-
-    # Shell weights of the fitted map, from the region fluxes (any energy works,
-    # since both shells share one spectrum; use the band-summed fluxes).
-    weights = np.array([f.sum() / (m * omega)[roi].sum() for f, m in zip((f1, f2), maps)])
-
-    curves = {}
-    for omega_sr in (PAPER_SOLID_ANGLE_SR, *SOLID_ANGLE_RANGE_SR):
-        footprint = paper_footprint(weights, maps, b, omega, omega_sr)
-        curves[omega_sr] = fit_to_paper(np.array([f1, f2]), maps, roi, footprint, omega)
-    s1, s2 = curves[PAPER_SOLID_ANGLE_SR]
-    total = s1 + s2
-    band = np.sort([curves[w].sum(axis=0) for w in SOLID_ANGLE_RANGE_SR], axis=0)
-
-    # Fit / paper ratio at the paper energies inside the fit range.
-    fit_at_paper = interp_loglog(paper_e, e1, total)
-    ratio = fit_at_paper / paper_y
-    in_band = (paper_e >= RATIO_BAND_MEV[0]) & (paper_e <= RATIO_BAND_MEV[1]) & np.isfinite(ratio)
-    mean_ratio = np.exp(np.mean(np.log(ratio[in_band])))
-
-    # Alternative definition, for reference: total model flux at |b| > cut / paper area.
-    high = np.abs(b) > LATITUDE_CUT_DEG
-    flux_ratio = sum(w * (m * omega)[high].sum() for w, m in zip(weights, maps)) / sum(
-        w * (m * omega)[roi].sum() for w, m in zip(weights, maps))
-    total_over_area = (f1 + f2) * flux_ratio / PAPER_SOLID_ANGLE_SR
-    mean_ratio_total = np.exp(np.mean(np.log(
-        (interp_loglog(paper_e, e1, total_over_area) / paper_y)[in_band])))
+    rows, curves = [], []
+    for ref in references:
+        region = ref["region"]
+        mask = region_pixels(region, region.get("solid_angle_sr"), fitted_map, b, omega)
+        parts, total = mean_intensity(energy, coefficients, term_maps, mask, omega)
+        band = None
+        if region["type"] == "footprint" and "solid_angle_range_sr" in region:
+            band = np.sort([
+                mean_intensity(energy, coefficients, term_maps,
+                               region_pixels(region, w, fitted_map, b, omega), omega)[1]
+                for w in region["solid_angle_range_sr"]
+            ], axis=0)
+        fit_at_ref = interp_loglog(ref["energy"], energy, total)
+        ratio = fit_at_ref / ref["e2_intensity"]
+        in_band = ((ref["energy"] >= RATIO_BAND_MEV[0]) & (ref["energy"] <= RATIO_BAND_MEV[1])
+                   & np.isfinite(ratio))
+        mean_ratio = float(np.exp(np.mean(np.log(ratio[in_band])))) if in_band.any() else np.nan
+        curves.append(dict(ref=ref, total=total, parts=parts, band=band, ratio=ratio,
+                           fit_at_ref=fit_at_ref, mean_ratio=mean_ratio))
+        rows.append({
+            "reference": ref["label"],
+            "region": region_text(region),
+            "region_solid_angle_sr": float(omega[mask].sum()),
+            "S1_share": float(np.mean(parts[0] / total)) if len(parts) == 2 else np.nan,
+            "mean_fit_over_published": mean_ratio,
+            "n_points_in_ratio_band": int(in_band.sum()),
+        })
 
     # --- Tables -----------------------------------------------------------
-    header = "energy_MeV\tS1\tS2\ttotal\ttotal_low\ttotal_high  [E^2 I, MeV cm^-2 s^-1 sr^-1]"
-    np.savetxt(SCRIPT_DIR / "converted_fit.csv", np.c_[e1, s1, s2, total, band[0], band[1]],
-               header=header, delimiter="\t")
-    footprint = paper_footprint(weights, maps, b, omega, PAPER_SOLID_ANGLE_SR)
-    summary = {
-        "paper_solid_angle_sr": PAPER_SOLID_ANGLE_SR,
-        "footprint_north_fraction": float(omega[footprint & (b > 0)].sum() / omega[footprint].sum()),
-        "S1_share_of_footprint_intensity": float(np.mean(s1 / total)),
-        "mean_fit_over_paper": float(mean_ratio),
-        "mean_fit_over_paper_total_flux_definition": float(mean_ratio_total),
-        "ratio_band_MeV": list(RATIO_BAND_MEV),
-    }
+    header = "energy_MeV\t" + "\t".join(f"[{c['ref']['label']}]" for c in curves)
+    np.savetxt(SCRIPT_DIR / "converted_fit.csv",
+               np.column_stack([energy] + [c["total"] for c in curves]),
+               header=header + "  (E^2 I of the fit averaged over each published region, "
+               "MeV cm^-2 s^-1 sr^-1)", delimiter="\t")
+    ratios = np.array([r["mean_fit_over_published"] for r in rows])
     with open(SCRIPT_DIR / "summary.csv", "w") as handle:
-        for key, value in summary.items():
-            handle.write(f"{key},{value}\n")
+        keys = list(rows[0])
+        handle.write(",".join(keys) + "\n")
+        for r in rows:
+            handle.write(",".join(f'"{r[k]}"' if isinstance(r[k], str) else f"{r[k]}" for k in keys)
+                         + "\n")
+        handle.write(f"# all-sky results: {ALLSKY_RESULTS_DIR}\n")
+        handle.write(f"# ratio band [MeV]: {RATIO_BAND_MEV[0]:g}-{RATIO_BAND_MEV[1]:g}\n")
+        finite = ratios[np.isfinite(ratios)]
+        if finite.size:
+            handle.write(f"# range of mean ratios over references: {finite.min():.3f}-{finite.max():.3f}\n")
 
     # --- Plot ---------------------------------------------------------------
-    fig, (ax, axr) = plt.subplots(2, 1, figsize=(7, 7), sharex=True,
-                                  gridspec_kw={"height_ratios": [3, 1]})
-    ax.errorbar(paper_e, paper_y, yerr=[paper_y - paper_lo, paper_hi - paper_y], fmt="o",
-                color="red", ms=4, capsize=2,
-                label="Fermi-LAT Loop I, |b| > 10° (Ackermann et al. 2025, Fig. 3)")
-    ax.fill_between(e1, band[0], band[1], color="C0", alpha=0.25, lw=0,
-                    label=f"{FIT_LABEL}, area {SOLID_ANGLE_RANGE_SR[0]}–{SOLID_ANGLE_RANGE_SR[1]} sr")
-    ax.plot(e1, total, color="C0", lw=2, label=f"{FIT_LABEL}, area {PAPER_SOLID_ANGLE_SR} sr")
-    ax.plot(e1, s1, color="C0", ls=":", lw=1.2, label="S1")
-    ax.plot(e1, s2, color="C0", ls="--", lw=1.2, label="S2")
+    # One fixed colour per published result; its points and the fit averaged
+    # over its region share that colour.
+    colours = ["#d62728", "#1f77b4", "#2ca02c", "#9467bd", "#ff7f0e", "#8c564b", "#e377c2"]
+    markers = ["o", "s", "^", "D", "v", "P", "X"]
+    fig, (ax, axr) = plt.subplots(2, 1, figsize=(7.5, 7.5), sharex=True,
+                                  gridspec_kw={"height_ratios": [3, 1.2]})
+    for i, c in enumerate(curves):
+        ref, col = c["ref"], colours[i % len(colours)]
+        y, lo, hi = ref["e2_intensity"], ref["e2_intensity_low"], ref["e2_intensity_high"]
+        ax.errorbar(ref["energy"], y, yerr=[y - lo, hi - y], fmt=markers[i % len(markers)],
+                    color=col, ms=4.5, capsize=2, lw=1, label=ref["label"])
+        if c["band"] is not None:
+            ax.fill_between(energy, *c["band"], color=col, alpha=0.18, lw=0)
+        ax.plot(energy, c["total"], color=col, lw=1.8,
+                label=f"{FIT_LABEL}, {region_text(ref['region'])}")
+        rerr = [c["ratio"] - c["fit_at_ref"] / hi, c["fit_at_ref"] / lo - c["ratio"]]
+        axr.errorbar(ref["energy"], c["ratio"], yerr=rerr, fmt=markers[i % len(markers)],
+                     color=col, ms=3.5, capsize=2, lw=1)
+        axr.axhline(c["mean_ratio"], color=col, ls="--", lw=1)
     curve = np.loadtxt(LOOPI_DIR / "leptonic_curve.txt")
-    ax.plot(curve[:, 0], curve[:, 2], color="purple", lw=1, alpha=0.6,
-            label="Leptonic model (paper; spectral shape of the fit)")
+    ax.plot(curve[:, 0], curve[:, 2], color="0.5", lw=1, ls=":",
+            label="Leptonic model of Ackermann et al. 2025 (shape used in the fit)")
     ax.set_xscale("log")
     ax.set_yscale("log")
     ax.set_xlim(80, 1.2e5)
     ax.set_ylim(1e-6, 3e-3)
     ax.set_ylabel(r"$E^2\,I(E)$ [MeV cm$^{-2}$ s$^{-1}$ sr$^{-1}$]")
-    ax.set_title(f"Loop I at |b| > {LATITUDE_CUT_DEG:.0f}°: mean intensity over "
-                 f"{PAPER_SOLID_ANGLE_SR} sr", fontsize=11)
-    ax.legend(fontsize=7.5, loc="lower left")
-    axr.errorbar(paper_e, ratio, yerr=[ratio - fit_at_paper / paper_hi, fit_at_paper / paper_lo - ratio],
-                 fmt="o", color="k", ms=3, capsize=2)
-    axr.axhline(1, color="gray", lw=0.8)
-    axr.axhline(mean_ratio, color="C0", ls="--", lw=1,
-                label=f"mean {mean_ratio:.2f} ({RATIO_BAND_MEV[0] / 1e3:g}–{RATIO_BAND_MEV[1] / 1e3:g} GeV)")
+    ax.set_title("Loop I: all-sky fit vs. published Fermi-LAT spectra\n"
+                 "(fit averaged over each published region; shaded: assumed area 2.5–3.5 sr)",
+                 fontsize=10)
+    ax.legend(fontsize=7, loc="lower left")
+    axr.axhline(1, color="0.3", lw=0.8)
     axr.set_yscale("log")
-    axr.set_ylabel("fit / paper")
+    axr.set_ylabel("fit / published")
     axr.set_xlabel("Energy [MeV]")
-    axr.legend(fontsize=8)
+    axr.text(0.01, 0.04, f"dashed: mean over {RATIO_BAND_MEV[0] / 1e3:g}–"
+             f"{RATIO_BAND_MEV[1] / 1e3:g} GeV", transform=axr.transAxes, fontsize=7.5, color="0.3")
     fig.tight_layout()
     fig.savefig(SCRIPT_DIR / "comparison.png", dpi=150)
     fig.savefig(SCRIPT_DIR / "comparison.pdf")
-    print(f"Mean fit/paper ratio ({RATIO_BAND_MEV[0]:g}-{RATIO_BAND_MEV[1]:g} MeV): {mean_ratio:.3f}")
-    print(f"  with the total-flux definition: {mean_ratio_total:.3f}")
+    for r in rows:
+        print(f"{r['reference']}: mean fit/published = {r['mean_fit_over_published']:.3f} "
+              f"({r['region']})")
     print("Wrote comparison.png, comparison.pdf, converted_fit.csv, summary.csv")
 
 
