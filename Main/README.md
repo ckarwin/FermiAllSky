@@ -46,8 +46,32 @@ cd Main
 sbatch slurm.sh            # or: python run_3ML_master.py
 ```
 
-Run the script from this folder. Results go to `output/` in the current
-directory and to the Fermipy working directory (`fermipy_outdir`).
+Results go to `output/` in the directory you run from and to the Fermipy
+working directory (`fermipy_outdir`).
+
+### Runs in other folders
+
+The script can be copied to any folder for a separate run. Two settings at
+the top of USER SETTINGS say where things are:
+
+| Setting | Meaning |
+|---|---|
+| `REPO` | Your clone of this repository. The model folders (`DM_Model/`, `LoopI/`, `Bubbles_Model/`) and `Main/compare_gce_ajello2016.py` are read from here. |
+| `RUN_DIR` | Folder with the run's `config.yaml` and `fermi_src_model.yaml`. Default: the folder the script is in. |
+
+For example:
+
+```bash
+mkdir -p /path/to/my_run && cd /path/to/my_run
+cp /path/to/FermiAllSky/Main/{run_3ML_master.py,config.yaml,fermi_src_model.yaml,slurm.sh} .
+# edit run_3ML_master.py (savename, options, fermipy_outdir) and submit:
+sbatch slurm.sh
+```
+
+To share one `config.yaml` and `fermi_src_model.yaml` between runs, copy only
+the script and set `RUN_DIR` to the folder that holds them. Give each run its
+own `fermipy_outdir`, so that runs do not overwrite each other's Fermipy
+files.
 
 ## The model
 
