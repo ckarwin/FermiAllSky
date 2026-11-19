@@ -19,7 +19,7 @@ folder has its own guide:
 | [`Bubbles_Model/`](Bubbles_Model/README.md) | Model | Low- and high-latitude Fermi-bubble spatial templates | `bubbles_*.fits` |
 | [`Isotropic/`](Isotropic/README.md) | Analysis | Masked all-sky fit with GALPROP diffuse emission, 4FGL catalog sources, Sun, Moon and Loop I: measures the isotropic spectrum and the diffuse and foreground normalizations | `isotropic_spectrum.txt`, `diffuse_normalizations.json` |
 | [`Main/`](Main/README.md) | Analysis | Inner-Galaxy (40° × 40°) 3ML fit with GALPROP diffuse emission and 4FGL catalog sources, the all-sky results as fixed backgrounds, and optional Galactic-centre excess and Fermi bubbles | fitted parameters, model maps, GCE comparison plot |
-| [`Plots/`](Plots/README.md) | Plotting | Count spectra, flux spectra and sky maps (data, model, residuals) of the inner-Galaxy fit, by component; comparisons with published Fermi-bubble spectra and with the official isotropic template | `counts_spectra.png`, `flux_spectra_*.png`, `residuals.png` |
+| [`Plots/`](Plots/README.md) | Plotting | Count spectra, flux spectra and sky maps (data, model, residuals) of the inner-Galaxy fit, by component; comparisons with published Fermi-bubble and Loop I spectra and with the official isotropic template | `counts_spectra.png`, `flux_spectra_*.png`, `residuals.png` |
 | [`tests/`](tests/) | — | Regression tests (`python -m pytest -q tests`) | — |
 
 How they connect:
@@ -35,8 +35,8 @@ How they connect:
    diffuse emission and the 4FGL catalog sources, the all-sky results held
    fixed, and the GCE and bubble models.
 4. **Plot the results** (`Plots/`): spectra and maps of the data, the model and
-   each component, and comparisons with published bubble spectra and the
-   official isotropic template.
+   each component, and comparisons with published bubble and Loop I spectra
+   and the official isotropic template.
 
 ## Typical workflow
 

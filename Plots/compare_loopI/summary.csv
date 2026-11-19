@@ -1,0 +1,6 @@
+paper_solid_angle_sr,3.0
+footprint_north_fraction,0.7765157339162154
+S1_share_of_footprint_intensity,0.12686027958360163
+mean_fit_over_paper,0.2819916536301053
+mean_fit_over_paper_total_flux_definition,0.310573459438067
+ratio_band_MeV,[300.0, 30000.0]
