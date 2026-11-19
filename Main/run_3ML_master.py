@@ -16,7 +16,8 @@ Fits a 40 x 40 deg region around the Galactic centre with the 3ML
   dispersion disabled.
 
 Requires the ``diffuse-analysis`` branches of threeML and astromodels
-(custom ``FermipyLike`` and ``GalpropMap``). Run from this folder:
+(custom ``FermipyLike`` and ``GalpropMap``). Run from the folder where the
+outputs should go (this folder, or a folder with a copy of this script):
 
     python run_3ML_master.py        (or: sbatch slurm.sh)
 
@@ -35,9 +36,6 @@ import astropy.units as u
 import pandas as pd
 import numpy as np
 
-HERE = Path(__file__).resolve().parent
-REPO = HERE.parent
-
 pd.set_option("display.float_format", "{:.6e}".format)
 
 # Need to specify ST version (fermipy workaround):
@@ -46,6 +44,17 @@ fermipy.get_st_version = lambda: "2.4.0"
 # =============================================================================
 # USER SETTINGS
 # =============================================================================
+
+# --- Locations --------------------------------------------------------------------
+# REPO: your clone of the FermiAllSky repository. The model folders
+# (DM_Model/, LoopI/, Bubbles_Model/) and Main/compare_gce_ajello2016.py are
+# read from here.
+REPO = Path("/project/ckarwin/astro/chris/annihilation_in_flight/build_analysis_pipeline/Run_19/ThreeML_Analysis")  # EDIT
+
+# RUN_DIR: folder with this run's config.yaml and fermi_src_model.yaml. The
+# default is the folder this script is in, so a copy of the script uses the
+# files next to it. Set an absolute path to use files from elsewhere.
+RUN_DIR = Path(__file__).resolve().parent
 
 # Name used in all output files of this run.
 savename = "baseline_with_all_components_pl_bubbles"
@@ -185,13 +194,13 @@ if make_src_model:
     model.add_source(brem_source)
 
     # Save model:
-    model.save(str(HERE / "fermi_src_model.yaml"), overwrite=True)
+    model.save(str(RUN_DIR / "fermi_src_model.yaml"), overwrite=True)
 
     print("... finished making source model.")
 
 # Load saved model:
 if make_src_model == False:
-    model = load_model(str(HERE / "fermi_src_model.yaml"))
+    model = load_model(str(RUN_DIR / "fermi_src_model.yaml"))
 
 # Optional pi0 spectral tilt (see USER SETTINGS). The mapcube amplitude stays
 # the spatial K; the spectral Powerlaw is a dimensionless multiplier with K fixed
@@ -427,7 +436,7 @@ model.display()
 # 5. LAT configuration and isotropic spectrum
 # =============================================================================
 
-with (HERE / "config.yaml").open() as stream:
+with (RUN_DIR / "config.yaml").open() as stream:
     lat_config = yaml.safe_load(stream)
 
 # The fitted isotropic is an effective background: do not apply edisp again.
@@ -580,6 +589,9 @@ ps_map.write(f"output/mcube_point_sources_{savename}.fits", overwrite=True)
 # Compare best-fit GCE spectrum with Ajello et al. (2016), Figure 13
 # (writes GCE_Ajello2016_comparison.pdf; see compare_gce_ajello2016.py):
 if include_dm:
+    import sys
+
+    sys.path.insert(0, str(REPO / "Main"))  # works for copies of this script too
     from compare_gce_ajello2016 import plot_gce_comparison
 
     plot_gce_comparison(jl.results, nfw_file)
