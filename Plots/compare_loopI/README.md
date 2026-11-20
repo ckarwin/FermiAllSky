@@ -71,6 +71,7 @@ The script averages this map over the region of each published result:
 | Region type | Region | Used for |
 |---|---|---|
 | `latitude` | All longitudes at \|b\| > `b_min_deg` | Results quoted as an average over a latitude cut |
+| `flux_per_area` | Total flux at \|b\| > `b_min_deg`, divided by `solid_angle_sr` | Results quoted as a total flux spread over a nominal Loop I area |
 | `footprint` | The brightest `solid_angle_sr` of the fitted map at \|b\| > `b_min_deg` | Results quoted as an average over a published Loop I template area |
 
 S1 and S2 have different shapes, so they are averaged separately and then
@@ -80,7 +81,7 @@ added.
 
 | File | Result | Template | Region |
 |---|---|---|---|
-| `reference/ackermann2014.yaml` | Ackermann et al. 2014, ApJ 793, 64, Fig. 15 (as replotted in Ackermann, Malyshev & Malyshev 2025, Space Sci. Rev. 221:92, Fig. 3) | Derived from the data (spectral component analysis) | Mean over the Loop I template at \|b\| > 10°; area of about 3 sr **assumed** |
+| `reference/ackermann2014.yaml` | Ackermann et al. 2014, ApJ 793, 64, Fig. 15 (as replotted in Ackermann, Malyshev & Malyshev 2025, Space Sci. Rev. 221:92, Fig. 3) | Derived from the data (spectral component analysis) | Total flux at \|b\| > 10° divided by 3 sr |
 | `reference/igrb2015_model{A,B,C}.yaml` | Ackermann et al. 2015, ApJ 799, 86 (arXiv:1410.3696), Figs. 4–6, "Loop I / Local Loop", foreground models A, B and C | Wolleben (2007) shells, as here | Mean over all longitudes at \|b\| > 20° |
 
 None of these papers tabulates its Loop I spectrum, so the points were read
@@ -103,14 +104,20 @@ bin only below 12.8 GeV; above, its normalization is fixed (the bands are the
 same for all three models). Those points are drawn hollow and left out of the
 mean ratio (`ratio_band_mev` in the YAML files).
 
-**The 3 sr area is an assumption.** Neither paper states over which area the
-2014 Loop I intensity is averaged. The 2014 paper gives the bubble spectrum as
-the mean over the bubble template, and the 2025 paper gives Loop I an area of
-about 3 sr, so the Loop I points are taken as the mean over a ~3 sr template.
-The 2014 template is derived from the data, not from the shells, so "the
-brightest 3 sr of the shell model" only stands in for it. The shaded band shows
-2.5–3.5 sr. Averaging over all of |b| > 10° (10.4 sr) instead would lower the
-fit by about a factor of 3.
+**What the 2014 points mean.** Fig. 15 of the 2014 paper shows the spectra of
+all components averaged over the whole analysis region, |b| > 10° (10.4 sr).
+The 2025 paper replots the Loop I spectrum as an intensity over Loop I's own
+area, Ω ≈ 3 sr: its points are the 2014 values × 10.4 / 3. Reading Fig. 15
+directly confirms this (the 2025 points are 3.5 × higher, which corresponds to
+2.96 sr). So the 2014 points are the total Loop I flux at |b| > 10°
+divided by 3 sr, and the fit is evaluated in the same way. This uses no
+assumption about the shape of the 2014 template, and does not depend on how
+the fit splits Loop I between S1 and S2.
+
+**The 2014 and 2015 results differ by about 30–50%** (the fit-to-published
+ratios differ by that much), a measure of the
+systematic uncertainty from how Loop I is modelled (template derived from
+the data vs. Wolleben shells, different foreground models).
 
 Other Loop I results checked:
 
@@ -129,10 +136,11 @@ label: Author et al. 20XX (template)        # legend text
 citation: Journal reference, figure or table
 template: Which Loop I template the paper used
 region:
-  type: latitude                             # or: footprint
+  type: latitude                             # or: flux_per_area, footprint
   b_min_deg: 20.0
-  # footprint only:
+  # flux_per_area and footprint:
   # solid_angle_sr: 3.0
+  # footprint only:
   # solid_angle_range_sr: [2.5, 3.5]         # optional band
 energy: [...]                                # MeV
 e2_intensity: [...]                          # E^2 dN/dE per sr, MeV cm^-2 s^-1 sr^-1
