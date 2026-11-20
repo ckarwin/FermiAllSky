@@ -6,12 +6,17 @@ import matplotlib.pyplot as plt
 
 savename = "baseline_with_all_components_pl_bubbles_gas_index_scaled"
 
+# EDIT: where the inner-Galaxy fit (Main/run_3ML_master.py) wrote its files.
+# FERMIPY_OUTDIR: Fermipy working directory (`fermipy_outdir` in run_3ML_master.py):
+#   counts cube, exposure and model cubes.
+FERMIPY_OUTDIR = "/project/ckarwin/astro/chris/annihilation_in_flight/build_analysis_pipeline/Run_19/ThreeML_Analysis/output"
+
 instance_plots = Plots('inputs.yaml')
 
-ccube_file = "../output/ccube_00.fits"
+ccube_file = f"{FERMIPY_OUTDIR}/ccube_00.fits"
 instance_plots.plot_skymap(ccube_file, "count_map.png", input_dim=3, make_sum=True, vmin=100, title="Data")
 
-mcube_file = f"../output/mcube_fit_roi_{savename}_00.fits"
+mcube_file = f"{FERMIPY_OUTDIR}/mcube_fit_roi_{savename}_00.fits"
 instance_plots.plot_skymap(mcube_file, "model_map.png", input_dim=3, make_sum=True, vmin=100, title="Model")
 
 # plot residauls:
