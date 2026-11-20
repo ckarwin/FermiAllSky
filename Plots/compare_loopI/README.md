@@ -17,6 +17,11 @@ Requirements: NumPy, Matplotlib and PyYAML. The script rebuilds the Loop I
 shell templates from [`LoopI/shell_geometry.py`](../../LoopI/shell_geometry.py);
 it does not need the large Loop I FITS files.
 
+After each inner-Galaxy fit, [`make_all_plots.py`](../README.md) runs this
+comparison for the all-sky fit that the inner-Galaxy fit used
+(`loopI_comparison.png` in the fit's plot folder), and
+[`compare_fits.py`](../README.md) overlays several fits.
+
 ## Inputs
 
 **Your fit.** The results folder of an all-sky fit

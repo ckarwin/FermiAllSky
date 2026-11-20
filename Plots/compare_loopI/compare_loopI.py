@@ -7,6 +7,9 @@ Edit the settings below to compare a different fit. See README.md.
 The fitted Loop I sky is rebuilt from the per-shell spectra written by the
 all-sky fit (Isotropic/), then averaged over the region that each published
 result refers to. Each published result is one YAML file in reference/.
+
+The functions are also used by make_all_plots.py (one fit, called after
+run_3ML_master.py) and compare_fits.py (several fits overlaid).
 """
 
 import sys
@@ -20,6 +23,8 @@ SCRIPT_DIR = Path(__file__).resolve().parent
 REFERENCE_DIR = SCRIPT_DIR / "reference"
 LOOPI_DIR = SCRIPT_DIR.parents[1] / "LoopI"
 sys.path.insert(0, str(LOOPI_DIR))
+sys.path.insert(0, str(SCRIPT_DIR.parent))
+from plot_style import GRID, LABEL_SIZE, TICK_SIZE  # noqa: E402
 from shell_geometry import SHELLS, path_length  # noqa: E402
 
 # ---------------------------------------------------------------------------
@@ -181,16 +186,32 @@ def region_text(region):
 # ---------------------------------------------------------------------------
 
 
-def main():
-    energy, coefficients, weights = load_fit_spectra(ALLSKY_RESULTS_DIR)
+# Published results: one fixed colour and marker each, in file order.
+REF_COLOURS = ["#d62728", "#1f77b4", "#2ca02c", "#9467bd", "#ff7f0e", "#8c564b", "#e377c2"]
+REF_MARKERS = ["o", "s", "^", "D", "v", "P", "X"]
+REGION_STYLES = ["-", "--", "-.", ":"]
+
+
+def load_references(files=None):
+    """All published results (REFERENCE_FILES by default)."""
+    references = [load_reference(p) for p in (REFERENCE_FILES if files is None else files)]
+    if not references:
+        raise FileNotFoundError(f"No reference YAML files in {REFERENCE_DIR}")
+    return references
+
+
+def fit_curves(allsky_dir, references):
+    """The fitted Loop I evaluated over each published region.
+
+    Returns (energy [MeV], curves, rows): one curve dict per reference
+    (total, parts, band, ratio, ...) and one summary row per reference.
+    """
+    energy, coefficients, weights = load_fit_spectra(allsky_dir)
     shells, l, b, omega = shell_templates()
     term_maps = np.tensordot(weights, shells, axes=1)
     # Map used to rank pixels for "footprint" regions. All terms share one
     # spectral shape, so the band-summed coefficients give the map's shape.
     fitted_map = np.tensordot((coefficients * energy**2).sum(axis=1), term_maps, axes=1)
-    references = [load_reference(p) for p in REFERENCE_FILES]
-    if not references:
-        raise FileNotFoundError(f"No reference YAML files in {REFERENCE_DIR}")
 
     rows, curves = [], []
     for ref in references:
@@ -224,89 +245,128 @@ def main():
             "ratio_band_MeV": f"{lo_e:g}-{hi_e:g}",
             "n_points_in_ratio_band": int(in_band.sum()),
         })
+    return energy, curves, rows
 
-    # --- Tables -----------------------------------------------------------
-    header = "energy_MeV\t" + "\t".join(f"[{c['ref']['label']}]" for c in curves)
-    np.savetxt(SCRIPT_DIR / "converted_fit.csv",
-               np.column_stack([energy] + [c["total"] for c in curves]),
-               header=header + "  (E^2 I of the fit averaged over each published region, "
-               "MeV cm^-2 s^-1 sr^-1)", delimiter="\t")
-    ratios = np.array([r["mean_fit_over_published"] for r in rows])
-    with open(SCRIPT_DIR / "summary.csv", "w") as handle:
-        keys = list(rows[0])
-        handle.write(",".join(keys) + "\n")
-        for r in rows:
-            handle.write(",".join(f'"{r[k]}"' if isinstance(r[k], str) else f"{r[k]}" for k in keys)
-                         + "\n")
-        handle.write(f"# all-sky results: {ALLSKY_RESULTS_DIR}\n")
-        handle.write(f"# ratio band [MeV]: {RATIO_BAND_MEV[0]:g}-{RATIO_BAND_MEV[1]:g}\n")
-        finite = ratios[np.isfinite(ratios)]
-        if finite.size:
-            handle.write(f"# range of mean ratios over references: {finite.min():.3f}-{finite.max():.3f}\n")
 
-    # --- Plot ---------------------------------------------------------------
-    # Published results: one fixed colour and marker each. Points outside a
-    # result's own ratio band (e.g. not fitted bin by bin) are drawn hollow.
-    # The fit: one black curve per distinct region definition.
-    colours = ["#d62728", "#1f77b4", "#2ca02c", "#9467bd", "#ff7f0e", "#8c564b", "#e377c2"]
-    markers = ["o", "s", "^", "D", "v", "P", "X"]
-    styles = ["-", "--", "-.", ":"]
-    fig, (ax, axr) = plt.subplots(2, 1, figsize=(7.5, 7.5), sharex=True,
-                                  gridspec_kw={"height_ratios": [3, 1.2]})
-    drawn = {}
-    for i, c in enumerate(curves):
-        ref, col, mk = c["ref"], colours[i % len(colours)], markers[i % len(markers)]
+def draw_references(ax, references, axr=None, curves=None):
+    """Published points on `ax` (and their fit/published ratios on `axr`).
+
+    Points outside a result's own ratio band (e.g. not fitted bin by bin)
+    are drawn hollow.
+    """
+    for i, ref in enumerate(references):
+        col, mk = REF_COLOURS[i % len(REF_COLOURS)], REF_MARKERS[i % len(REF_MARKERS)]
         e, y, lo, hi = ref["energy"], ref["e2_intensity"], ref["e2_intensity_low"], ref["e2_intensity_high"]
-        rerr = np.array([c["ratio"] - c["fit_at_ref"] / hi, c["fit_at_ref"] / lo - c["ratio"]])
         own = ref.get("ratio_band_mev", (0, np.inf))
         inside = (e >= own[0]) & (e <= own[1])
         for sel, face, label in ((inside, col, ref["label"]), (~inside, "white", None)):
             if not sel.any():
                 continue
             ax.errorbar(e[sel], y[sel], yerr=[(y - lo)[sel], (hi - y)[sel]], fmt=mk, color=col,
-                        mfc=face, ms=4.5, capsize=2, lw=1, label=label)
-            axr.errorbar(e[sel], c["ratio"][sel], yerr=rerr[:, sel], fmt=mk, color=col, mfc=face,
-                         ms=3.5, capsize=2, lw=1)
-        axr.hlines(c["mean_ratio"], *c["band_mev"], color=col, ls="--", lw=1)
-        key = region_text(ref["region"])
-        if key not in drawn:
-            ls = styles[len(drawn) % len(styles)]
-            drawn[key] = ls
-            if c["band"] is not None:
-                ax.fill_between(energy, *c["band"], color="0.6", alpha=0.3, lw=0)
-            ax.plot(energy, c["total"], color="k", ls=ls, lw=1.6, label=f"{FIT_LABEL}, {key}")
-    if any(np.any(np.asarray(c["ref"]["energy"]) > c["ref"].get("ratio_band_mev", (0, np.inf))[1])
-           for c in curves):
-        ax.plot([], [], "o", color="0.4", mfc="white", ms=4.5,
+                        mfc=face, ms=5.5, capsize=2, lw=1.2, label=label)
+            if axr is not None:
+                c = curves[i]
+                rerr = np.array([c["ratio"] - c["fit_at_ref"] / hi, c["fit_at_ref"] / lo - c["ratio"]])
+                axr.errorbar(e[sel], c["ratio"][sel], yerr=rerr[:, sel], fmt=mk, color=col, mfc=face,
+                             ms=4.5, capsize=2, lw=1.2)
+        if axr is not None:
+            axr.hlines(curves[i]["mean_ratio"], *curves[i]["band_mev"], color=col, ls="--", lw=1.2)
+    if any(np.any(np.asarray(r["energy"]) > r.get("ratio_band_mev", (0, np.inf))[1])
+           for r in references):
+        ax.plot([], [], "o", color="0.4", mfc="white", ms=5.5,
                 label="hollow: not fitted bin by bin in that paper")
+
+
+def draw_leptonic_curve(ax):
+    """The leptonic model whose shape the fit uses."""
     curve = np.loadtxt(LOOPI_DIR / "leptonic_curve.txt")
-    ax.plot(curve[:, 0], curve[:, 2], color="0.5", lw=1, ls=":",
+    ax.plot(curve[:, 0], curve[:, 2], color="0.5", lw=1.2, ls=":",
             label="Leptonic model of Ackermann et al. 2025 (shape used in the fit)")
+
+
+def style_spectrum_axes(ax, xlabel=True):
+    """Axis ranges, labels and grid of the spectrum panel."""
     ax.set_xscale("log")
     ax.set_yscale("log")
     ax.set_xlim(80, 1.2e5)
     ax.set_ylim(1e-6, 3e-3)
-    ax.set_ylabel(r"$E^2\,I(E)$ [MeV cm$^{-2}$ s$^{-1}$ sr$^{-1}$]")
+    ax.set_ylabel(r"$E^2\,I(E)$ [MeV cm$^{-2}$ s$^{-1}$ sr$^{-1}$]", fontsize=LABEL_SIZE)
+    if xlabel:
+        ax.set_xlabel("Energy [MeV]", fontsize=LABEL_SIZE)
+    ax.tick_params(axis="both", which="major", labelsize=TICK_SIZE)
+    ax.grid(**GRID)
+
+
+def main(allsky_dir=ALLSKY_RESULTS_DIR, label=FIT_LABEL, outdir=SCRIPT_DIR, prefix="", show=False):
+    """Make the comparison for one all-sky fit.
+
+    Outputs go to `outdir`, with `prefix` before each file name:
+    comparison.png/.pdf, converted_fit.csv and summary.csv.
+    """
+    outdir = Path(outdir)
+    references = load_references()
+    energy, curves, rows = fit_curves(allsky_dir, references)
+
+    # --- Tables -----------------------------------------------------------
+    header = "energy_MeV\t" + "\t".join(f"[{c['ref']['label']}]" for c in curves)
+    np.savetxt(outdir / f"{prefix}converted_fit.csv",
+               np.column_stack([energy] + [c["total"] for c in curves]),
+               header=header + "  (E^2 I of the fit averaged over each published region, "
+               "MeV cm^-2 s^-1 sr^-1)", delimiter="\t")
+    ratios = np.array([r["mean_fit_over_published"] for r in rows])
+    with open(outdir / f"{prefix}summary.csv", "w") as handle:
+        keys = list(rows[0])
+        handle.write(",".join(keys) + "\n")
+        for r in rows:
+            handle.write(",".join(f'"{r[k]}"' if isinstance(r[k], str) else f"{r[k]}" for k in keys)
+                         + "\n")
+        handle.write(f"# all-sky results: {allsky_dir}\n")
+        handle.write(f"# ratio band [MeV]: {RATIO_BAND_MEV[0]:g}-{RATIO_BAND_MEV[1]:g}\n")
+        finite = ratios[np.isfinite(ratios)]
+        if finite.size:
+            handle.write(f"# range of mean ratios over references: {finite.min():.3f}-{finite.max():.3f}\n")
+
+    # --- Plot ---------------------------------------------------------------
+    # The fit: one black curve per distinct region definition.
+    fig, (ax, axr) = plt.subplots(2, 1, figsize=(9, 9), sharex=True,
+                                  gridspec_kw={"height_ratios": [3, 1.2], "hspace": 0.05})
+    draw_references(ax, references, axr=axr, curves=curves)
+    drawn = {}
+    for c in curves:
+        key = region_text(c["ref"]["region"])
+        if key not in drawn:
+            drawn[key] = REGION_STYLES[len(drawn) % len(REGION_STYLES)]
+            if c["band"] is not None:
+                ax.fill_between(energy, *c["band"], color="0.6", alpha=0.3, lw=0)
+            ax.plot(energy, c["total"], color="k", ls=drawn[key], lw=2, label=f"{label}, {key}")
+    draw_leptonic_curve(ax)
+    style_spectrum_axes(ax, xlabel=False)
     ax.set_title("Loop I: all-sky fit vs. published Fermi-LAT spectra\n"
-                 "(fit evaluated over each published region)", fontsize=10)
-    ax.legend(fontsize=7, loc="lower left")
+                 "(fit evaluated over each published region)", fontsize=13)
+    ax.legend(fontsize=9, loc="lower left", frameon=False)
     axr.axhline(1, color="0.3", lw=0.8)
     axr.set_yscale("log")
     axr.set_ylim(*RATIO_YLIM)
     axr.yaxis.set_major_formatter(plt.FuncFormatter(lambda v, _: f"{v:g}"))
     axr.yaxis.set_minor_formatter(plt.FuncFormatter(
         lambda v, _: f"{v:g}" if round(v, 3) in (0.2, 0.3, 0.5, 2.0) else ""))
-    axr.set_ylabel("fit / published")
-    axr.set_xlabel("Energy [MeV]")
-    axr.text(0.01, 0.04, "dashed: mean ratio over the energies it is computed for",
-             transform=axr.transAxes, fontsize=7.5, color="0.3")
-    fig.tight_layout()
-    fig.savefig(SCRIPT_DIR / "comparison.png", dpi=150)
-    fig.savefig(SCRIPT_DIR / "comparison.pdf")
+    axr.set_ylabel("fit / published", fontsize=LABEL_SIZE)
+    axr.set_xlabel("Energy [MeV]", fontsize=LABEL_SIZE)
+    axr.tick_params(axis="both", which="both", labelsize=TICK_SIZE)
+    axr.grid(**GRID)
+    axr.text(0.01, 0.05, "dashed: mean ratio over the energies it is computed for",
+             transform=axr.transAxes, fontsize=10, color="0.3")
+    fig.savefig(outdir / f"{prefix}comparison.png", dpi=150, bbox_inches="tight")
+    fig.savefig(outdir / f"{prefix}comparison.pdf", bbox_inches="tight")
+    if show:
+        plt.show()
+    plt.close(fig)
     for r in rows:
         print(f"{r['reference']}: mean fit/published = {r['mean_fit_over_published']:.3f} "
               f"({r['region']})")
-    print("Wrote comparison.png, comparison.pdf, converted_fit.csv, summary.csv")
+    print(f"Wrote {prefix}comparison.png, {prefix}comparison.pdf, {prefix}converted_fit.csv, "
+          f"{prefix}summary.csv in {outdir}")
+    return rows
 
 
 if __name__ == "__main__":

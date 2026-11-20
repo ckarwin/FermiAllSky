@@ -19,6 +19,7 @@ to the same fit as additional plugins.
 - [Settings](#settings)
 - [Using the all-sky results](#using-the-all-sky-results)
 - [Output files](#output-files)
+- [Plots](#plots)
 - [Comparing the GCE with Ajello et al. (2016)](#comparing-the-gce-with-ajello-et-al-2016)
 - [Changing the model](#changing-the-model)
 - [Files in this folder](#files-in-this-folder)
@@ -31,7 +32,9 @@ to the same fit as additional plugins.
   [astromodels](https://github.com/ckarwin/astromodels/tree/diffuse-analysis).
   They provide the diffuse-emission features used here (GALPROP mapcubes as
   3ML sources, a custom isotropic spectrum, and the π⁰ spectral tilt).
-- Astropy and Matplotlib (for the GCE comparison plot).
+- For the plots made after the fit: Astropy, Matplotlib, pandas, healpy and
+  [lat_binned_analysis](https://github.com/ckarwin/Fermi-LAT_Binned_Analysis)
+  (see [`Plots/`](../Plots/README.md#requirements)).
 - Results from the other folders: the all-sky fit, the Sun/Moon and Loop I
   templates, and the NFW and bubble templates in `DM_Model/` and `Bubbles_Model/`.
 
@@ -47,7 +50,8 @@ sbatch slurm.sh            # or: python run_3ML_master.py
 ```
 
 Results go to `output/` in the directory you run from and to the Fermipy
-working directory (`fermipy_outdir`).
+working directory (`fermipy_outdir`); the plots go to `Plots/<plots_subdir>`
+(see [Plots](#plots)).
 
 ### Runs in other folders
 
@@ -70,8 +74,8 @@ sbatch slurm.sh
 
 To share one `config.yaml` and `fermi_src_model.yaml` between runs, copy only
 the script and set `RUN_DIR` to the folder that holds them. Give each run its
-own `fermipy_outdir`, so that runs do not overwrite each other's Fermipy
-files.
+own `savename`, `fermipy_outdir` and `plots_subdir` (by default `plots_subdir`
+is `savename`), so that runs do not overwrite each other's files.
 
 ## The model
 
@@ -116,9 +120,10 @@ All settings are in the **USER SETTINGS** block at the top of
 | `include_dm`, `nfw_file` | Include the GCE and choose its NFW template. |
 | `include_bubbles`, `bubble_spectrum` | Include the bubbles; spectrum `"powerlaw"`, `"log_parabola"`, `"cutoff_powerlaw"` or `"broken_powerlaw"` (break energy free between 1 and 100 GeV). |
 | `fixed_templates`, `loopI_directory` | Files and fixed normalizations of the Sun, Moon and Loop I. |
-| `isotropic_spectrum_file` | Isotropic spectrum from the all-sky fit. |
+| `isotropic_spectrum_file`, `allsky_results_dir` | Isotropic spectrum from the all-sky fit, and that fit's results folder (default: the folder of the spectrum; used for the Loop I comparison plot). |
 | `free_point_source_radius` | Free the normalization of every 4FGL point source within this distance of the GC (default 0°: none). |
 | `fermipy_outdir` | Fermipy working directory. |
+| `make_plots`, `plots_subdir` | After the fit, make all plots in `Plots/<plots_subdir>` (default: `savename`). |
 
 [`config.yaml`](config.yaml) is a standard Fermipy configuration: data files,
 event selection, binning and instrument response. The source model comes from
@@ -163,16 +168,23 @@ In the Fermipy working directory (`fermipy_outdir`):
 | residual maps and plots | Data minus model |
 | `<component>_<savename>*` | Model-count map of each diffuse component |
 
-In the current directory: `GCE_Ajello2016_comparison.pdf` (when `include_dm = True`).
+## Plots
 
-To plot spectra and maps of these results by component, see [`Plots/`](../Plots/README.md).
+With `make_plots = True` (the default), the script finishes by making every
+plot of the fit in `Plots/<plots_subdir>`: count and flux spectra by
+component, sky maps, residual maps in energy bands, and the comparisons of the
+GCE, Fermi bubbles and Loop I with published results. A plot that fails is
+recorded in `make_all_plots.log` there and does not stop the others. See
+[`Plots/`](../Plots/README.md) for the list of files, how to redo the plots
+later, and how to overlay several fits.
 
 ## Comparing the GCE with Ajello et al. (2016)
 
-With `include_dm = True`, the script finishes by plotting the fitted GCE
-spectrum (best fit and 68% band) against the four GCE results of Ajello et al.
-(2016), Figure 13, in the same region of the sky (by default the paper's
-15° × 15° region). This is done by `plot_gce_comparison` in
+With `include_dm = True`, the plots include the fitted GCE spectrum (best fit
+and 68% band) against the four GCE results of Ajello et al. (2016), Figure 13,
+in the same region of the sky (by default the paper's 15° × 15° region),
+written to `Plots/<plots_subdir>/GCE_Ajello2016_comparison.pdf`. This is done
+by `plot_gce_comparison` in
 [`compare_gce_ajello2016.py`](compare_gce_ajello2016.py), which can also be
 used on its own:
 
@@ -185,8 +197,8 @@ plot_gce_comparison(results, "../DM_Model/nfw_gamma1.fits",
 ```
 
 Here `results` is a 3ML results object: `jl.results` after a fit, or one read
-with `load_analysis_results` if you saved it with
-`jl.results.write_to("output/results.fits")`. The paper curves are read from
+with `load_analysis_results` from `Plots/<plots_subdir>/threeML_analysis_results.fits`,
+which the plotting step saves. The paper curves are read from
 the published figure and are accurate to a few percent; see the module
 docstring for details.
 

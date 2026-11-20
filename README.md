@@ -19,7 +19,7 @@ folder has its own guide:
 | [`Bubbles_Model/`](Bubbles_Model/README.md) | Model | Low- and high-latitude Fermi-bubble spatial templates | `bubbles_*.fits` |
 | [`Isotropic/`](Isotropic/README.md) | Analysis | Masked all-sky fit with GALPROP diffuse emission, 4FGL catalog sources, Sun, Moon and Loop I: measures the isotropic spectrum and the diffuse and foreground normalizations | `isotropic_spectrum.txt`, `diffuse_normalizations.json` |
 | [`Main/`](Main/README.md) | Analysis | Inner-Galaxy (40° × 40°) 3ML fit with GALPROP diffuse emission and 4FGL catalog sources, the all-sky results as fixed backgrounds, and optional Galactic-centre excess and Fermi bubbles | fitted parameters, model maps, GCE comparison plot |
-| [`Plots/`](Plots/README.md) | Plotting | Count spectra, flux spectra and sky maps (data, model, residuals) of the inner-Galaxy fit, by component; comparisons with published Fermi-bubble and Loop I spectra and with the official isotropic template | `counts_spectra.png`, `flux_spectra_*.png`, `residuals.png` |
+| [`Plots/`](Plots/README.md) | Plotting | All plots of each inner-Galaxy fit, made automatically after the fit: count and flux spectra and sky maps by component, residual maps, and comparisons of the GCE, Fermi bubbles and Loop I with published results; overlays of several fits; isotropic spectra vs. the official template | `Plots/<fit>/counts_spectra.png`, `flux_spectra_*.png`, `residual_maps_*.png`, `*_comparison.png` |
 | [`tests/`](tests/) | — | Regression tests (`python -m pytest -q tests`) | — |
 
 How they connect:
@@ -34,9 +34,11 @@ How they connect:
 3. **Run the inner-Galaxy fit** (`Main/`). Its model contains the GALPROP
    diffuse emission and the 4FGL catalog sources, the all-sky results held
    fixed, and the GCE and bubble models.
-4. **Plot the results** (`Plots/`): spectra and maps of the data, the model and
-   each component, and comparisons with published bubble and Loop I spectra
-   and the official isotropic template.
+4. **Plot the results** (`Plots/`): made automatically at the end of each
+   inner-Galaxy fit, in `Plots/<plots_subdir>`: spectra and maps of the data,
+   the model and each component, and comparisons with published GCE, bubble
+   and Loop I spectra. Further scripts overlay several fits and compare
+   isotropic spectra with the official template.
 
 ## Typical workflow
 
@@ -69,9 +71,10 @@ cd ../Main
 sbatch slurm.sh
 
 # --- 4. Plots ----------------------------------------------------------------
-# Set savename in each script to that of the fit (see Plots/README.md).
+# Made by the fit in Plots/<plots_subdir>. To overlay several fits, list
+# their plot folders in Plots/compare_fits.py (see Plots/README.md):
 cd ../Plots
-python make_counts_plot.py
+python compare_fits.py
 ```
 
 ## Adding a new model
