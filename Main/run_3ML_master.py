@@ -105,7 +105,7 @@ isotropic_spectrum_file = "/project/ckarwin/astro/chris/annihilation_in_flight/b
 free_point_source_radius = 0.0 * u.deg
 
 # Fermipy working directory (overrides fileio.outdir in config.yaml).
-fermipy_outdir = "/project/ckarwin/astro/chris/annihilation_in_flight/build_analysis_pipeline/Run_19/ThreeML_Analysis/Main/output"
+fermipy_outdir = "/project/ckarwin/astro/chris/annihilation_in_flight/build_analysis_pipeline/Run_19/ThreeML_Analysis/output"
 
 # =============================================================================
 # 1. Source model: 4FGL + GALPROP
