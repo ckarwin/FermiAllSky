@@ -4,15 +4,15 @@ import matplotlib.pyplot as plt
 
 
 # Your best-fit spectrum (Sun and Moon + Loop I).
-E, I = np.loadtxt("/project/ckarwin/astro/chris/annihilation_in_flight/build_analysis_pipeline/Run_19/ThreeML_Analysis/Isotropic/output_with_solar_and_loopI/bestfit_2eb3f75ed5/isotropic_spectrum.txt", unpack=True)
+E, I = np.loadtxt("/project/ckarwin/astro/chris/annihilation_in_flight/build_analysis_pipeline/Run_19/ThreeML_Analysis/Isotropic/isotropic_fit/output_with_solar_and_loopI/bestfit_2eb3f75ed5/isotropic_spectrum.txt", unpack=True)
 
 
 # Your best-fit spectrum (Sun and Moon).
-fit_0_path = "/project/ckarwin/astro/chris/annihilation_in_flight/build_analysis_pipeline/Run_19/ThreeML_Analysis/Isotropic/output_with_solar/bestfit_34e87a564c/"
+fit_0_path = "/project/ckarwin/astro/chris/annihilation_in_flight/build_analysis_pipeline/Run_19/ThreeML_Analysis/Isotropic/isotropic_fit/output_with_solar/bestfit_34e87a564c/"
 E_0, I_0 = np.loadtxt(fit_0_path+"isotropic_spectrum.txt", unpack=True)
 
 # Your best-fit spectrum (Sun and Moon + Loop I separate).
-E_1, I_1 = np.loadtxt("/project/ckarwin/astro/chris/annihilation_in_flight/build_analysis_pipeline/Run_19/ThreeML_Analysis/Isotropic/output_with_solar_and_loopI_separate/bestfit_33aa0a726a/isotropic_spectrum.txt", unpack=True)
+E_1, I_1 = np.loadtxt("/project/ckarwin/astro/chris/annihilation_in_flight/build_analysis_pipeline/Run_19/ThreeML_Analysis/Isotropic/isotropic_fit/output_with_solar_and_loopI_separate/bestfit_33aa0a726a/isotropic_spectrum.txt", unpack=True)
 
 # Official isotropic spectrum.
 E_ref, I_ref, dI_ref = np.loadtxt(

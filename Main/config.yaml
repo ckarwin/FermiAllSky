@@ -40,4 +40,4 @@ gtlike:
 
 fileio:
   # Overridden by fermipy_outdir in run_3ML_master.py.
-  outdir : "/project/ckarwin/astro/chris/annihilation_in_flight/build_analysis_pipeline/Run_19/ThreeML_Analysis/Main/output"
+  outdir : "/project/ckarwin/astro/chris/annihilation_in_flight/build_analysis_pipeline/Run_11/ThreeML_Analysis"

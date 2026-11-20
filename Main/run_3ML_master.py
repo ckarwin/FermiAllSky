@@ -97,7 +97,7 @@ fixed_templates = [
 
 # Isotropic spectrum exported by the all-sky fit
 # (MeV, ph cm^-2 s^-1 sr^-1 MeV^-1).
-isotropic_spectrum_file = "/project/ckarwin/astro/chris/annihilation_in_flight/build_analysis_pipeline/Run_19/ThreeML_Analysis/Isotropic/output_with_solar_and_loopI_separate/bestfit_33aa0a726a/isotropic_spectrum.txt"
+isotropic_spectrum_file = "/project/ckarwin/astro/chris/annihilation_in_flight/build_analysis_pipeline/Run_19/ThreeML_Analysis/Isotropic/isotropic_fit/output_with_solar_and_loopI_separate/bestfit_33aa0a726a/isotropic_spectrum.txt"
 
 # --- Fit options ------------------------------------------------------------------
 # Free the normalization of every 4FGL point source within this distance of

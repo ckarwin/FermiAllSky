@@ -13,4 +13,4 @@
 source /project/ckarwin/astro/chris/my_envs/joint_analysis_main.sh
 
 cd $SLURM_SUBMIT_DIR
-python -u generate_sun_moon_templates.py /project/ckarwin/astro/chris/annihilation_in_flight/build_analysis_pipeline/Run_19/ThreeML_Analysis/Isotropic/config.yaml --events /project/ckarwin/astro/chris/annihilation_in_flight/build_analysis_pipeline/Run_19/ThreeML_Analysis/Isotropic/output/fermipy/ft1_00.fits --ltcube /project/ckarwin/astro/chris/annihilation_in_flight/build_analysis_pipeline/Run_19/ThreeML_Analysis/Isotropic/output/fermipy/ltcube_00.fits --outdir solar_parallel --finalize-array
+python -u generate_sun_moon_templates.py /project/ckarwin/astro/chris/annihilation_in_flight/build_analysis_pipeline/Run_19/ThreeML_Analysis/Isotropic/isotropic_fit/config.yaml --events /project/ckarwin/astro/chris/annihilation_in_flight/build_analysis_pipeline/Run_19/ThreeML_Analysis/Isotropic/isotropic_fit/output/fermipy/ft1_00.fits --ltcube /project/ckarwin/astro/chris/annihilation_in_flight/build_analysis_pipeline/Run_19/ThreeML_Analysis/Isotropic/isotropic_fit/output/fermipy/ltcube_00.fits --outdir solar_parallel --finalize-array
