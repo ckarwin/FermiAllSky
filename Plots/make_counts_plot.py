@@ -10,8 +10,8 @@ savename = "baseline_with_all_components_pl_bubbles"
 #   counts cube, exposure and model cubes.
 # RUN_OUTPUT: the output/ folder in the directory run_3ML_master.py was run from:
 #   point-source model cube and 3ML results.
-FERMIPY_OUTDIR = "/project/ckarwin/astro/chris/annihilation_in_flight/build_analysis_pipeline/Run_19/ThreeML_Analysis/output"
-RUN_OUTPUT = "/project/ckarwin/astro/chris/annihilation_in_flight/build_analysis_pipeline/Run_19/ThreeML_Analysis/Main/output"
+FERMIPY_OUTDIR = "../output"
+RUN_OUTPUT = "../output"
 
 # Get total counts from ccube:
 ccube_file = f"{FERMIPY_OUTDIR}/ccube_00.fits"
