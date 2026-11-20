@@ -123,11 +123,14 @@ def region_pixels(region, solid_angle, fitted_map, b, omega):
     """Boolean pixel mask for a published region definition.
 
     * ``latitude``: all longitudes at |b| > b_min_deg.
+    * ``flux_per_area``: the same pixels; the intensity is then rescaled to
+      the total flux over them divided by ``solid_angle_sr`` (see
+      `region_scale`).
     * ``footprint``: the brightest `solid_angle` sr of the fitted Loop I map at
       |b| > b_min_deg, standing in for a published Loop I template area.
     """
     high = np.abs(b) > region["b_min_deg"]
-    if region["type"] == "latitude":
+    if region["type"] in ("latitude", "flux_per_area"):
         return high
     if region["type"] != "footprint":
         raise ValueError(f"Unknown region type {region['type']!r}")
@@ -153,10 +156,23 @@ def interp_loglog(x, xp, fp):
     return np.where((x >= xp[0]) & (x <= xp[-1]), out, np.nan)
 
 
+def region_scale(region, mask, omega):
+    """Factor applied to the mean intensity over `mask`.
+
+    For ``flux_per_area`` the published value is the total Loop I flux at
+    |b| > b_min_deg divided by ``solid_angle_sr``; otherwise it is the mean.
+    """
+    if region["type"] == "flux_per_area":
+        return omega[mask].sum() / region["solid_angle_sr"]
+    return 1.0
+
+
 def region_text(region):
     """Short plot label for a region definition."""
     if region["type"] == "latitude":
         return f"|b| > {region['b_min_deg']:g}°"
+    if region["type"] == "flux_per_area":
+        return f"flux at |b| > {region['b_min_deg']:g}° / {region['solid_angle_sr']:g} sr"
     return f"brightest {region['solid_angle_sr']:g} sr at |b| > {region['b_min_deg']:g}° (assumed)"
 
 
@@ -181,6 +197,8 @@ def main():
         region = ref["region"]
         mask = region_pixels(region, region.get("solid_angle_sr"), fitted_map, b, omega)
         parts, total = mean_intensity(energy, coefficients, term_maps, mask, omega)
+        scale = region_scale(region, mask, omega)
+        parts, total = parts * scale, total * scale
         band = None
         if region["type"] == "footprint" and "solid_angle_range_sr" in region:
             band = np.sort([
@@ -270,8 +288,7 @@ def main():
     ax.set_ylim(1e-6, 3e-3)
     ax.set_ylabel(r"$E^2\,I(E)$ [MeV cm$^{-2}$ s$^{-1}$ sr$^{-1}$]")
     ax.set_title("Loop I: all-sky fit vs. published Fermi-LAT spectra\n"
-                 "(fit averaged over each published region; shaded: assumed area 2.5–3.5 sr)",
-                 fontsize=10)
+                 "(fit evaluated over each published region)", fontsize=10)
     ax.legend(fontsize=7, loc="lower left")
     axr.axhline(1, color="0.3", lw=0.8)
     axr.set_yscale("log")

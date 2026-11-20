@@ -79,12 +79,13 @@ def main(pdf_path):
         "Malyshev & Malyshev 2025, Space Sci. Rev. 221:92, Fig. 3 (right)",
         "template": "Data-derived Loop I template (spectral component analysis, 1 sigma threshold)",
         "region": {
-            "type": "footprint",
+            "type": "flux_per_area",
             "b_min_deg": 10.0,
             "solid_angle_sr": 3.0,
-            "solid_angle_range_sr": [2.5, 3.5],
-            "note": "Mean intensity over the Loop I template at |b| > 10 deg. The template area "
-            "(about 3 sr) is inferred from Ackermann et al. 2025; it is not stated in the 2014 paper.",
+            "note": "Ackermann et al. 2014, Fig. 15 gives the Loop I (SCA) intensity averaged over all "
+            "of |b| > 10 deg (10.4 sr). Ackermann et al. 2025 rescaled it to Loop I's area of about "
+            "3 sr: the points are the total |b| > 10 deg flux divided by 3 sr (checked against Fig. 15: "
+            "ratio about 3.5, i.e. 2.96 sr).",
         },
         "source": "Figure 3 (right), red circles, of Ackermann, Malyshev & Malyshev, "
         "Space Sci. Rev. 221:92 (2025), doi:10.1007/s11214-025-01215-0; data from "
