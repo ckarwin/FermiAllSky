@@ -19,26 +19,26 @@ instance = Analysis('inputs.yaml')
 instance_plots = Plots('inputs.yaml')
 
 # calc total observed flux:
-#instance_plots.calculate_flux(f'{OUTPUT_DIR}/ccube_00.fits',f'{OUTPUT_DIR}/bexpmap_00.fits',"observed")
+instance_plots.calculate_flux(f'{OUTPUT_DIR}/ccube_00.fits',f'{OUTPUT_DIR}/bexpmap_00.fits',"observed")
 
 # calc total model flux:
-#instance_plots.calculate_flux(f'{OUTPUT_DIR}/mcube_fit_roi_{savename}_00.fits',f'{OUTPUT_DIR}/bexpmap_00.fits',"model",filetype="fermipy_mcube")
+instance_plots.calculate_flux(f'{OUTPUT_DIR}/mcube_fit_roi_{savename}_00.fits',f'{OUTPUT_DIR}/bexpmap_00.fits',"model",filetype="fermipy_mcube")
 
 # calc isodiff flux:
-#instance_plots.calculate_flux(f'{OUTPUT_DIR}/mcube_isodiff_{savename}_00.fits',f'{OUTPUT_DIR}/bexpmap_00.fits',"isodiff",filetype="fermipy_mcube")
+instance_plots.calculate_flux(f'{OUTPUT_DIR}/mcube_isodiff_{savename}_00.fits',f'{OUTPUT_DIR}/bexpmap_00.fits',"isodiff",filetype="fermipy_mcube")
 
 # calc galdiff flux:
-#instance_plots.calculate_flux(f'{OUTPUT_DIR}/mcube_pion_decay_{savename}_00.fits',f'{OUTPUT_DIR}/bexpmap_00.fits',"pion_decay",filetype="fermipy_mcube")
+instance_plots.calculate_flux(f'{OUTPUT_DIR}/mcube_pion_decay_{savename}_00.fits',f'{OUTPUT_DIR}/bexpmap_00.fits',"pion_decay",filetype="fermipy_mcube")
 
-#instance_plots.calculate_flux(f'{OUTPUT_DIR}/mcube_ic_{savename}_00.fits',f'{OUTPUT_DIR}/bexpmap_00.fits',"ics",filetype="fermipy_mcube")
+instance_plots.calculate_flux(f'{OUTPUT_DIR}/mcube_ic_{savename}_00.fits',f'{OUTPUT_DIR}/bexpmap_00.fits',"ics",filetype="fermipy_mcube")
 
-#instance_plots.calculate_flux(f'{OUTPUT_DIR}/mcube_brem_{savename}_00.fits',f'{OUTPUT_DIR}/bexpmap_00.fits',"bremss",filetype="fermipy_mcube")
+instance_plots.calculate_flux(f'{OUTPUT_DIR}/mcube_brem_{savename}_00.fits',f'{OUTPUT_DIR}/bexpmap_00.fits',"bremss",filetype="fermipy_mcube")
 
 # point source flux:
-#instance_plots.calculate_flux(f'{OUTPUT_DIR}/mcube_point_sources_{savename}.fits',f'{OUTPUT_DIR}/bexpmap_00.fits',"pcs",filetype="fermipy_mcube")
+instance_plots.calculate_flux(f'{OUTPUT_DIR}/mcube_point_sources_{savename}.fits',f'{OUTPUT_DIR}/bexpmap_00.fits',"pcs",filetype="fermipy_mcube")
 
 # GCE:
-#instance_plots.calculate_flux(f'{OUTPUT_DIR}/mcube_GCE_NFW_{savename}.fits',f'{OUTPUT_DIR}/bexpmap_00.fits',"gce",filetype="fermipy_mcube")
+instance_plots.calculate_flux(f'{OUTPUT_DIR}/mcube_GCE_NFW_{savename}.fits',f'{OUTPUT_DIR}/bexpmap_00.fits',"gce",filetype="fermipy_mcube")
 
 # Bubbles low:
 instance_plots.calculate_flux(f'{OUTPUT_DIR}/mcube_bubbles_low_{savename}.fits',f'{OUTPUT_DIR}/bexpmap_00.fits',"bubbles_low",filetype="fermipy_mcube")
@@ -48,16 +48,16 @@ instance_plots.calculate_flux(f'{OUTPUT_DIR}/mcube_bubbles_high_{savename}.fits'
 sys.exit()
 
 # Sun:
-#instance_plots.calculate_flux(f'{OUTPUT_DIR}/mcube_Sun_{savename}.fits',f'{OUTPUT_DIR}/bexpmap_00.fits',"sun",filetype="fermipy_mcube")
+instance_plots.calculate_flux(f'{OUTPUT_DIR}/mcube_Sun_{savename}.fits',f'{OUTPUT_DIR}/bexpmap_00.fits',"sun",filetype="fermipy_mcube")
 
 # Moon:
-#instance_plots.calculate_flux(f'{OUTPUT_DIR}/mcube_Moon_{savename}.fits',f'{OUTPUT_DIR}/bexpmap_00.fits',"moon",filetype="fermipy_mcube")
+instance_plots.calculate_flux(f'{OUTPUT_DIR}/mcube_Moon_{savename}.fits',f'{OUTPUT_DIR}/bexpmap_00.fits',"moon",filetype="fermipy_mcube")
 
 # Loop I S1:
-#instance_plots.calculate_flux(f'{OUTPUT_DIR}/mcube_Loop_I_S1_{savename}.fits',f'{OUTPUT_DIR}/bexpmap_00.fits',"loopI_SI",filetype="fermipy_mcube")
+instance_plots.calculate_flux(f'{OUTPUT_DIR}/mcube_Loop_I_S1_{savename}.fits',f'{OUTPUT_DIR}/bexpmap_00.fits',"loopI_SI",filetype="fermipy_mcube")
 
 # Loop I S2:
-#instance_plots.calculate_flux(f'{OUTPUT_DIR}/mcube_Loop_I_S2_{savename}.fits',f'{OUTPUT_DIR}/bexpmap_00.fits',"loopI_S2",filetype="fermipy_mcube")
+instance_plots.calculate_flux(f'{OUTPUT_DIR}/mcube_Loop_I_S2_{savename}.fits',f'{OUTPUT_DIR}/bexpmap_00.fits',"loopI_S2",filetype="fermipy_mcube")
 
 # Get total counts from ccube:
 ccube_file = f"{OUTPUT_DIR}/ccube_00.fits"
