@@ -7,7 +7,7 @@ import pandas as pd
 # EDIT: where the inner-Galaxy fit (Main/run_3ML_master.py) wrote its files.
 # FERMIPY_OUTDIR: Fermipy working directory (`fermipy_outdir` in run_3ML_master.py):
 #   counts cube, exposure and model cubes.
-FERMIPY_OUTDIR = "/project/ckarwin/astro/chris/annihilation_in_flight/build_analysis_pipeline/Run_19/ThreeML_Analysis/output"
+FERMIPY_OUTDIR = "/project/ckarwin/astro/chris/annihilation_in_flight/build_analysis_pipeline/Run_19/ThreeML_Analysis/Main/output"
 
 #define instance of class:
 iteration_instance = pyLikelihood('inputs.yaml')
