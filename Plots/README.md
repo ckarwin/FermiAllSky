@@ -26,16 +26,15 @@ Scripts for plotting the analysis results:
 
 ## Inputs
 
-The inner-Galaxy plots read the files written by that fit from two folders,
+The inner-Galaxy plots read the files written by that fit from one folder,
 set at the top of each script (with `savename`):
 
 ```python
-FERMIPY_OUTDIR = "/path/to/fermipy_outdir"   # fermipy_outdir in Main/run_3ML_master.py
-RUN_OUTPUT = "/path/to/run_dir/output"       # output/ where run_3ML_master.py was run
+OUTPUT_DIR = "../Main/output"
 ```
 
-Everything below comes from `FERMIPY_OUTDIR`, except the point-source cube,
-which is in `RUN_OUTPUT`.
+This assumes `fermipy_outdir` in `Main/run_3ML_master.py` is the `output/`
+folder of the run directory, so that all files below are in one place.
 
 | File | Written by the fit as |
 |---|---|

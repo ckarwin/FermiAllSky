@@ -5,16 +5,12 @@ from astropy.io import fits
 
 savename = "baseline_with_all_components_pl_bubbles"
 
-# EDIT: where the inner-Galaxy fit (Main/run_3ML_master.py) wrote its files.
-# FERMIPY_OUTDIR: Fermipy working directory (`fermipy_outdir` in run_3ML_master.py):
-#   counts cube, exposure and model cubes.
-# RUN_OUTPUT: the output/ folder in the directory run_3ML_master.py was run from:
-#   point-source model cube and 3ML results.
-FERMIPY_OUTDIR = "../output"
-RUN_OUTPUT = "../output"
+# EDIT: output folder of the inner-Galaxy fit (Main/run_3ML_master.py), i.e. its
+# fermipy_outdir, which also holds the point-source cube and 3ML results.
+OUTPUT_DIR = "../Main/output"
 
 # Get total counts from ccube:
-ccube_file = f"{FERMIPY_OUTDIR}/ccube_00.fits"
+ccube_file = f"{OUTPUT_DIR}/ccube_00.fits"
 hdu = fits.open(ccube_file)
 data = hdu[0].data
 total_counts = data.sum(axis=(1,2))
@@ -25,7 +21,7 @@ err_low_list = energy_mean_list - energy['E_MIN']/1000.0
 err_high_list = energy['E_MAX']/1000.0 - energy_mean_list
 
 # Get total model counts:
-mcube_file = f"{FERMIPY_OUTDIR}/mcube_fit_roi_{savename}_00.fits"
+mcube_file = f"{OUTPUT_DIR}/mcube_fit_roi_{savename}_00.fits"
 hdu = fits.open(mcube_file)
 data = hdu[0].data
 total_model_counts = data.sum(axis=(1,2))
@@ -37,73 +33,73 @@ print("data counts:")
 print(total_counts)
 
 # Get contribution from point sources:
-mcube_file = f"{RUN_OUTPUT}/mcube_point_sources_{savename}.fits"
+mcube_file = f"{OUTPUT_DIR}/mcube_point_sources_{savename}.fits"
 hdu = fits.open(mcube_file)
 data = hdu[0].data
 total_src_counts = data.sum(axis=(1,2))
 
 # Get contribution from isodiff:
-mcube_file = f"{FERMIPY_OUTDIR}/mcube_isodiff_{savename}_00.fits"
+mcube_file = f"{OUTPUT_DIR}/mcube_isodiff_{savename}_00.fits"
 hdu = fits.open(mcube_file)
 data = hdu[0].data
 isodiff_counts = data.sum(axis=(1,2))
 
 # Get contribution from pi0:
-mcube_file = f"{FERMIPY_OUTDIR}/mcube_pion_decay_{savename}_00.fits"
+mcube_file = f"{OUTPUT_DIR}/mcube_pion_decay_{savename}_00.fits"
 hdu = fits.open(mcube_file)
 data = hdu[0].data
 pion_decay_counts = data.sum(axis=(1,2))
 
 # Get contribution from ic:
-mcube_file = f"{FERMIPY_OUTDIR}/mcube_ic_{savename}_00.fits"
+mcube_file = f"{OUTPUT_DIR}/mcube_ic_{savename}_00.fits"
 hdu = fits.open(mcube_file)
 data = hdu[0].data
 ics_counts = data.sum(axis=(1,2))
 
 # Get contribution from Brem:
-mcube_file = f"{FERMIPY_OUTDIR}/mcube_brem_{savename}_00.fits"
+mcube_file = f"{OUTPUT_DIR}/mcube_brem_{savename}_00.fits"
 hdu = fits.open(mcube_file)
 data = hdu[0].data
 bremss_counts = data.sum(axis=(1,2))
 
 # Get contribution from GCE:
-mcube_file = f"{FERMIPY_OUTDIR}/mcube_GCE_NFW_{savename}_00.fits"
+mcube_file = f"{OUTPUT_DIR}/mcube_GCE_NFW_{savename}_00.fits"
 hdu = fits.open(mcube_file)
 data = hdu[0].data
 gce_counts = data.sum(axis=(1,2))
 
 # Get contribution from high-lat bubbles:
-mcube_file = f"{FERMIPY_OUTDIR}/mcube_bubbles_high_{savename}_00.fits"
+mcube_file = f"{OUTPUT_DIR}/mcube_bubbles_high_{savename}_00.fits"
 hdu = fits.open(mcube_file)
 data = hdu[0].data
 bubble_high_counts = data.sum(axis=(1,2))
 
 # Get contribution from low-lat bubbles:
-mcube_file = f"{FERMIPY_OUTDIR}/mcube_bubbles_low_{savename}_00.fits"
+mcube_file = f"{OUTPUT_DIR}/mcube_bubbles_low_{savename}_00.fits"
 hdu = fits.open(mcube_file)
 data = hdu[0].data
 bubble_low_counts = data.sum(axis=(1,2))
 
 # Get contribution from Sun:
-mcube_file = f"{FERMIPY_OUTDIR}/mcube_Sun_{savename}_00.fits"
+mcube_file = f"{OUTPUT_DIR}/mcube_Sun_{savename}_00.fits"
 hdu = fits.open(mcube_file)
 data = hdu[0].data
 sun_counts = data.sum(axis=(1,2))
 
 # Get contribution from Moon:
-mcube_file = f"{FERMIPY_OUTDIR}/mcube_Moon_{savename}_00.fits"
+mcube_file = f"{OUTPUT_DIR}/mcube_Moon_{savename}_00.fits"
 hdu = fits.open(mcube_file)
 data = hdu[0].data
 moon_counts = data.sum(axis=(1,2))
 
 # Get contribution from Loop I S1:
-mcube_file = f"{FERMIPY_OUTDIR}/mcube_Loop_I_S1_{savename}_00.fits"
+mcube_file = f"{OUTPUT_DIR}/mcube_Loop_I_S1_{savename}_00.fits"
 hdu = fits.open(mcube_file)
 data = hdu[0].data
 LIS1_counts = data.sum(axis=(1,2))
 
 # Get contribution from Loop I S2:
-mcube_file = f"{FERMIPY_OUTDIR}/mcube_Loop_I_S2_{savename}_00.fits"
+mcube_file = f"{OUTPUT_DIR}/mcube_Loop_I_S2_{savename}_00.fits"
 hdu = fits.open(mcube_file)
 data = hdu[0].data
 LIS2_counts = data.sum(axis=(1,2))
