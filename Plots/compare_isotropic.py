@@ -1,59 +1,105 @@
-import numpy as np
+"""Compare isotropic spectra from several all-sky fits with the official one.
+
+Run: python compare_isotropic.py
+
+Top: E^2 I(E) of each fit (isotropic_spectrum.txt) and of the official
+Fermi-LAT isotropic template with its 1-sigma band. Bottom: the fractional
+counts residual (data - model) / model of each all-sky fit, summed over its
+retained sky, as in that fit's counts_spectrum.png (read from diagnostics.npz
+in the same results folder).
+
+Edit FITS below: one entry per all-sky fit, with the results folder
+(Isotropic/<outdir>/bestfit_<hash>), a legend label and a colour.
+"""
+
+from pathlib import Path
+
 import matplotlib.pyplot as plt
+import numpy as np
+
+from plot_style import GRID, LABEL_SIZE, LEGEND_SIZE, TICK_SIZE
+
+# ---------------------------------------------------------------------------
+# Settings
+# ---------------------------------------------------------------------------
+
+ISOTROPIC = "/project/ckarwin/astro/chris/annihilation_in_flight/build_analysis_pipeline/Run_19/ThreeML_Analysis/Isotropic/isotropic_fit"
+
+# (results folder, label, colour)
+FITS = [
+    (f"{ISOTROPIC}/output_with_solar_and_loopI/bestfit_2eb3f75ed5", "Sun and Moon + Loop I", "magenta"),
+    (f"{ISOTROPIC}/output_with_solar/bestfit_34e87a564c", "Sun and Moon", "cyan"),
+    (f"{ISOTROPIC}/output_with_solar_and_loopI_separate/bestfit_33aa0a726a", "Sun and Moon + Loop I (separate)", "orange"),
+]  # fmt: skip
+
+# Official isotropic spectrum (energy [MeV], intensity, 1-sigma error).
+OFFICIAL = "/project/ckarwin/astro/chris/my_envs/joint_analysis_main/share/fermitools/refdata/fermi/galdiffuse/iso_P8R3_SOURCE_V3_v1.txt"
+
+# Output figure (also shown on screen); None to only show it.
+OUTPUT = "compare_isotropic.png"
+
+# Y range of the residual panel, e.g. (-0.05, 0.05); None = automatic.
+RESIDUAL_YLIM = None
 
 
-
-# Your best-fit spectrum (Sun and Moon + Loop I).
-E, I = np.loadtxt("/project/ckarwin/astro/chris/annihilation_in_flight/build_analysis_pipeline/Run_19/ThreeML_Analysis/Isotropic/isotropic_fit/output_with_solar_and_loopI/bestfit_2eb3f75ed5/isotropic_spectrum.txt", unpack=True)
+# ---------------------------------------------------------------------------
 
 
-# Your best-fit spectrum (Sun and Moon).
-fit_0_path = "/project/ckarwin/astro/chris/annihilation_in_flight/build_analysis_pipeline/Run_19/ThreeML_Analysis/Isotropic/isotropic_fit/output_with_solar/bestfit_34e87a564c/"
-E_0, I_0 = np.loadtxt(fit_0_path+"isotropic_spectrum.txt", unpack=True)
+def fractional_residuals(results_dir):
+    """Energy [MeV], (D - M)/M and its error from a fit's diagnostics.npz.
 
-# Your best-fit spectrum (Sun and Moon + Loop I separate).
-E_1, I_1 = np.loadtxt("/project/ckarwin/astro/chris/annihilation_in_flight/build_analysis_pipeline/Run_19/ThreeML_Analysis/Isotropic/isotropic_fit/output_with_solar_and_loopI_separate/bestfit_33aa0a726a/isotropic_spectrum.txt", unpack=True)
+    Sums data and model over the retained (unmasked) sky, exactly as the
+    all-sky fit's counts_spectrum.png does.
+    """
+    with np.load(Path(results_dir) / "diagnostics.npz", allow_pickle=False) as z:
+        keep = z["keep"]
+        edges = z["edges"]
+        data = z["counts"][:, keep].sum(axis=1)
+        model = z["model"][:, keep].sum(axis=1)
+    energy = np.sqrt(edges[:-1] * edges[1:])
+    frac = np.divide(data - model, model, out=np.full_like(model, np.nan, dtype=float),
+                     where=model > 0)
+    err = np.divide(np.sqrt(data), model, out=np.zeros_like(model, dtype=float), where=model > 0)
+    return energy, frac, err
 
-# Official isotropic spectrum.
-E_ref, I_ref, dI_ref = np.loadtxt(
-    "/project/ckarwin/astro/chris/my_envs/joint_analysis_main/share/fermitools/refdata/fermi/galdiffuse/iso_P8R3_SOURCE_V3_v1.txt", unpack=True
-)
 
-fig, ax = plt.subplots(figsize=(7, 5))
+def main():
+    fig, (ax, ar) = plt.subplots(2, 1, figsize=(8, 8), sharex=True,
+                                 gridspec_kw={"height_ratios": [3, 1.3], "hspace": 0.05})
 
-ax.loglog(
-    E, E**2 * I,
-    "o-", color="magenta", label="Sun and Moon + Loop I"
-)
+    emin, emax = np.inf, 0.0
+    for results_dir, label, colour in FITS:
+        energy, intensity = np.loadtxt(Path(results_dir) / "isotropic_spectrum.txt", unpack=True)
+        ax.loglog(energy, energy**2 * intensity, "o-", color=colour, label=label)
+        emin, emax = min(emin, energy.min()), max(emax, energy.max())
+        e, frac, err = fractional_residuals(results_dir)
+        ar.errorbar(e, frac, yerr=err, fmt="o", ms=4, color=colour, capsize=2)
 
-ax.loglog(
-    E_0, E_0**2 * I_0,
-    "o-", color="cyan", label="Sun and Moon"
-)
+    e_ref, i_ref, di_ref = np.loadtxt(OFFICIAL, unpack=True)
+    ax.loglog(e_ref, e_ref**2 * i_ref, color="black", label="Official isotropic")
+    ax.fill_between(e_ref, e_ref**2 * np.maximum(i_ref - di_ref, np.finfo(float).tiny),
+                    e_ref**2 * (i_ref + di_ref), color="black", alpha=0.15,
+                    label=r"Official $1\sigma$")
 
-ax.loglog(
-    E_1, E_1**2 * I_1,
-    "o-", color="orange", label="Sun and Moon + Loop I (separate)"
-)
+    ax.set_xlim(emin / 1.15, emax * 1.15)
+    ax.set_ylabel(r"$E^2 I(E)$ [MeV cm$^{-2}$ s$^{-1}$ sr$^{-1}$]", fontsize=LABEL_SIZE)
+    ax.tick_params(axis="both", which="major", labelsize=TICK_SIZE)
+    ax.grid(True, which="both", alpha=0.25)
+    ax.legend(fontsize=LEGEND_SIZE, frameon=False)
 
-ax.loglog(
-    E_ref, E_ref**2 * I_ref,
-    color="black", label="Official isotropic"
-)
+    ar.axhline(0, color="grey", lw=1)
+    ar.set_xscale("log")
+    if RESIDUAL_YLIM is not None:
+        ar.set_ylim(*RESIDUAL_YLIM)
+    ar.set_xlabel("Energy [MeV]", fontsize=LABEL_SIZE)
+    ar.set_ylabel("(D - M)/M", fontsize=LABEL_SIZE)
+    ar.tick_params(axis="both", which="major", labelsize=TICK_SIZE)
+    ar.grid(**GRID)
 
-ax.fill_between(
-    E_ref,
-    E_ref**2 * np.maximum(I_ref - dI_ref, np.finfo(float).tiny),
-    E_ref**2 * (I_ref + dI_ref),
-    color="black", alpha=0.15, label=r"Official $1\sigma$"
-)
+    if OUTPUT:
+        fig.savefig(OUTPUT, dpi=150, bbox_inches="tight")
+    plt.show()
 
-ax.set_xlim(E.min(), E.max())
-ax.set_xlabel("Energy [MeV]")
-ax.set_ylabel(
-    r"$E^2 I(E)$ [MeV cm$^{-2}$ s$^{-1}$ sr$^{-1}$]"
-)
-ax.grid(True, which="both", alpha=0.25)
-ax.legend()
-fig.tight_layout()
-plt.show()
+
+if __name__ == "__main__":
+    main()

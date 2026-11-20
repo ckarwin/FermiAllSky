@@ -3,7 +3,11 @@
 Run: python compare_bubbles.py
 Requires: numpy, pandas, matplotlib, astropy, healpy, pyyaml.
 Edit the settings below to compare a different fit. See README.md.
+
+The functions are also used by make_all_plots.py (one fit, called after
+run_3ML_master.py) and compare_fits.py (several fits overlaid).
 """
+import sys
 from pathlib import Path
 
 import healpy as hp
@@ -38,6 +42,14 @@ HOLE_FILL_RADIUS_DEG = 2.0
 
 SCRIPT_DIR = Path(__file__).resolve().parent
 REFERENCE_DIR = SCRIPT_DIR / "reference"
+sys.path.insert(0, str(SCRIPT_DIR.parent))
+from plot_style import GRID, LABEL_SIZE, LEGEND_SIZE, TICK_SIZE, TITLE_SIZE  # noqa: E402
+
+# Panels: (tag, key in the published YAML, title, colour of the fit).
+COMPONENTS = [
+    ("low", "Low lat bubbles", "Low-latitude component", "#a32ab2"),
+    ("high", "Bubbles", "High-latitude component", "#c23a3a"),
+]
 
 
 def load_fit_spectrum(filename):
@@ -132,68 +144,102 @@ def integrated_energy_flux(energy, sed):
     return np.trapezoid(interpolate_sed(grid, energy, sed), x=np.log(grid))
 
 
-def main():
+def paper_spectra():
+    """Published spectra converted to the fit ROI, per component.
+
+    Returns {tag: dict(energy, sed, error, factors)} with energy in GeV and
+    E²dF/dE in GeV cm^-2 s^-1 integrated over the ROI.
+    """
     spectra, template, filled, source_mask, lat, roi, exposure, exposure_energy = load_reference()
     paper_energy = np.array(spectra["Energies"])
-    components = [
-        ("low", "Low lat bubbles", abs(lat) < LATITUDE_SPLIT_DEG,
-         LOW_LAT_FLUX_FILE, "#a32ab2"),
-        ("high", "Bubbles", abs(lat) > LATITUDE_SPLIT_DEG,
-         HIGH_LAT_FLUX_FILE, "#c23a3a"),
-    ]
-    fig, axes = plt.subplots(1, 2, figsize=(11, 4.6), sharey=True,
-                             layout="constrained")
+    latitude_masks = {"low": abs(lat) < LATITUDE_SPLIT_DEG, "high": abs(lat) > LATITUDE_SPLIT_DEG}
+    out = {}
+    for tag, key, _, _ in COMPONENTS:
+        factors = paper_roi_factors(paper_energy, template, filled, source_mask,
+                                    latitude_masks[tag], roi, exposure, exposure_energy)
+        out[tag] = dict(energy=paper_energy,
+                        sed=np.array(spectra[key]) * factors,
+                        error=np.array(spectra[key + "_err"]) * factors,
+                        factors=factors)
+    return out
+
+
+def comparison_figure():
+    """Empty two-panel figure (low, high) in the shared style."""
+    fig, axes = plt.subplots(1, 2, figsize=(13, 5.6), sharey=True, layout="constrained")
+    for ax, (tag, _, title, _) in zip(axes, COMPONENTS):
+        ax.set(xscale="log", yscale="log", xlim=(.3, 100), ylim=(3e-9, 8e-7))
+        ax.set_title(title, fontsize=TITLE_SIZE)
+        ax.set_xlabel("Energy [GeV]", fontsize=LABEL_SIZE)
+        ax.tick_params(axis="both", which="major", labelsize=TICK_SIZE)
+        ax.grid(**GRID)
+    axes[0].set_ylabel(r"$E^2\,dF/dE$ [GeV cm$^{-2}$ s$^{-1}$]", fontsize=LABEL_SIZE)
+    fig.suptitle(
+        rf"Integrated over $|l|<{ROI_LON_LIMIT_DEG}^\circ,\ |b|<{ROI_LAT_LIMIT_DEG}^\circ$"
+        " (no point-source holes)", fontsize=TITLE_SIZE)
+    return fig, axes
+
+
+def plot_paper(ax, paper):
+    """Published points (converted to the ROI) on one panel."""
+    ax.errorbar(paper["energy"], paper["sed"], yerr=paper["error"], fmt="o", ms=4,
+                color="black", capsize=2, label="Ackermann et al. 2017 (converted to ROI)")
+
+
+def main(low_file=LOW_LAT_FLUX_FILE, high_file=HIGH_LAT_FLUX_FILE, label=FIT_LABEL,
+         outdir=SCRIPT_DIR, prefix="", show=True):
+    """Make the comparison for one fit.
+
+    low_file, high_file: flux tables of the two bubble components (relative
+    paths are taken beside this script). Outputs go to `outdir`, with
+    `prefix` before each file name: comparison.png/.pdf,
+    converted_reference.csv and summary.csv.
+    """
+    outdir = Path(outdir)
+    paper = paper_spectra()
+    files = {"low": low_file, "high": high_file}
+    fig, axes = comparison_figure()
     reference_rows = []
     summary_rows = []
 
-    for ax, (tag, key, latitude_mask, filename, color) in zip(axes, components):
-        # 1. Convert only the published spectrum to our ROI.
-        factors = paper_roi_factors(paper_energy, template, filled, source_mask,
-                                    latitude_mask, roi, exposure, exposure_energy)
-        paper_sed = np.array(spectra[key]) * factors
-        paper_error = np.array(spectra[key + "_err"]) * factors
-
-        # 2. Load the fit, which is already integrated over the ROI.
-        fit_energy, fit_sed = load_fit_spectrum(filename)
+    for ax, (tag, _, _, color) in zip(axes, COMPONENTS):
+        # 1. The published spectrum, converted only to our ROI.
+        p = paper[tag]
+        # 2. The fit, which is already integrated over the ROI.
+        fit_energy, fit_sed = load_fit_spectrum(files[tag])
 
         # 3. Plot both spectra in the same units and aperture.
-        ax.errorbar(paper_energy, paper_sed, yerr=paper_error, fmt="o", ms=3,
-                    color="black", capsize=2, label="Ackermann 2017: converted to ROI")
-        ax.plot(fit_energy, fit_sed, color=color, lw=2,
-                label=f"{FIT_LABEL}: ROI counts/exposure flux")
-        ax.set(title=tag.capitalize() + "-latitude component", xscale="log",
-               yscale="log", xlim=(.3, 100), ylim=(3e-9, 8e-7), xlabel="Energy [GeV]")
-        ax.grid(alpha=.2)
-        ax.legend(fontsize=8)
+        plot_paper(ax, p)
+        ax.plot(fit_energy, fit_sed, color=color, lw=2.5,
+                label=f"{label}: ROI counts/exposure flux")
+        ax.legend(fontsize=LEGEND_SIZE, frameon=False)
 
         # 4. Save the 10 GeV comparison and the energy-integrated band flux.
         band_name = f"{BAND_GEV[0]:g}_{BAND_GEV[1]:g}GeV"
         summary_rows.append({
             "component": tag,
-            "paper_roi_factor_10GeV": float(np.interp(10, paper_energy, factors)),
-            "paper_E2F_10GeV": interpolate_sed(10, paper_energy, paper_sed),
+            "paper_roi_factor_10GeV": float(np.interp(10, p["energy"], p["factors"])),
+            "paper_E2F_10GeV": interpolate_sed(10, p["energy"], p["sed"]),
             "user_E2F_10GeV": interpolate_sed(10, fit_energy, fit_sed),
-            f"paper_energy_flux_{band_name}": integrated_energy_flux(paper_energy, paper_sed),
+            f"paper_energy_flux_{band_name}": integrated_energy_flux(p["energy"], p["sed"]),
             f"user_energy_flux_{band_name}": integrated_energy_flux(fit_energy, fit_sed),
         })
-        for energy, sed, factor in zip(paper_energy, paper_sed, factors):
+        for energy, sed, factor in zip(p["energy"], p["sed"], p["factors"]):
             reference_rows.append({"component": tag, "energy_GeV": energy,
                                    "paper_roi_E2F": sed, "aperture_factor": factor})
 
-    axes[0].set_ylabel(r"$E^2 dF/dE$ [GeV cm$^{-2}$ s$^{-1}$]")
-    fig.suptitle(
-        rf"Integrated over $|l|<{ROI_LON_LIMIT_DEG}^\circ,\ |b|<{ROI_LAT_LIMIT_DEG}^\circ$"
-        " (no point-source holes)")
-    fig.savefig(SCRIPT_DIR / "comparison.png", dpi=180)
-    fig.savefig(SCRIPT_DIR / "comparison.pdf")
-    plt.show()
+    fig.savefig(outdir / f"{prefix}comparison.png", dpi=180)
+    fig.savefig(outdir / f"{prefix}comparison.pdf")
+    if show:
+        plt.show()
     plt.close(fig)
-    pd.DataFrame(reference_rows).to_csv(SCRIPT_DIR / "converted_reference.csv", index=False)
+    pd.DataFrame(reference_rows).to_csv(outdir / f"{prefix}converted_reference.csv", index=False)
     summary = pd.DataFrame(summary_rows)
-    summary.to_csv(SCRIPT_DIR / "summary.csv", index=False)
+    summary.to_csv(outdir / f"{prefix}summary.csv", index=False)
     print(summary.to_string(index=False))
     if summary.isna().any().any():
         print("NaN/blank summary values mean the spectrum does not cover the requested energy range.")
+    return summary
 
 
 if __name__ == "__main__":

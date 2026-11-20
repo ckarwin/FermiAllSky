@@ -17,6 +17,10 @@ python compare_bubbles.py
 Requirements: NumPy, pandas, Matplotlib, Astropy, healpy and PyYAML. The
 published data are included in `reference/`.
 
+After each inner-Galaxy fit, [`make_all_plots.py`](../README.md) runs this
+comparison for that fit (`bubbles_comparison.png` in the fit's plot folder),
+and [`compare_fits.py`](../README.md) overlays several fits.
+
 ## Inputs
 
 **Your fit.** Two flux files made by [`../plot_flux.py`](../README.md) from the

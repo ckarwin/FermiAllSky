@@ -218,6 +218,63 @@ FIG13_ENVELOPES = {
 
 PAPER_ROI = (-7.5, 7.5, -7.5, 7.5)  # Galactic lmin, lmax, bmin, bmax [deg] of Figure 13
 
+# Figure style (matches the counts and flux spectra in Plots/).
+LABEL_SIZE = 16
+TICK_SIZE = 14
+LEGEND_SIZE = 11
+TITLE_SIZE = 14
+
+FIG13_LABELS = {
+    "black": "Pulsars, index-scaled",
+    "green": "OB stars, index-scaled",
+    "red": "Pulsars, intensity-scaled",
+    "blue": "OB stars, intensity-scaled",
+}
+FIG13_HATCHES = {"black": "---", "green": "\\\\", "red": "|||", "blue": "///"}
+FIG13_FLOOR = 7.1e-6  # lower plotted limit of the original figure [MeV cm^-2 s^-1]
+
+
+def draw_fig13_envelopes(ax, paper_scale=1.0):
+    """Draw the four Figure 13 envelopes, scaled by `paper_scale`.
+
+    `paper_scale` = (template fraction in the comparison ROI) / (fraction in
+    the paper's 15 x 15 deg ROI); 1 for the paper's ROI.
+    """
+    floor = FIG13_FLOOR * paper_scale
+    for color in ("red", "blue", "green", "black"):
+        energy, lo, hi = FIG13_ENVELOPES[color].T
+        lo, hi = lo * paper_scale, hi * paper_scale
+        # NaN = lower boundary was outside the paper's plotted range.
+        # Show only its visible portion, without inventing a faint-energy tail.
+        visible_lo = np.where(np.isfinite(lo), lo, floor)
+        ax.fill_between(energy, visible_lo, hi, color=color, alpha=0.10)
+        ax.fill_between(
+            energy,
+            visible_lo,
+            hi,
+            facecolor="none",
+            edgecolor=color,
+            hatch=FIG13_HATCHES[color],
+            linewidth=1,
+            label=FIG13_LABELS[color],
+        )
+        ax.plot(energy, lo, color=color, lw=0.8, alpha=0.6)
+        ax.plot(energy, hi, color=color, lw=0.8, alpha=0.6)
+    return floor
+
+
+def style_gce_axes(ax, comparison_roi=PAPER_ROI):
+    """Axis scales, labels, title and grid of the GCE comparison."""
+    ax.set(xscale="log", yscale="log", xlim=(1e3, 1e5), ylim=(1e-5, 2e-3))
+    ax.set_xlabel("Energy [MeV]", fontsize=LABEL_SIZE)
+    ax.set_ylabel(r"$E^2\,dN/dE$ [MeV cm$^{-2}$ s$^{-1}$]", fontsize=LABEL_SIZE)
+    ax.tick_params(axis="both", which="major", labelsize=TICK_SIZE)
+    lmin, lmax, bmin, bmax = comparison_roi
+    ax.set_title(
+        f"GCE: $l$ = [{lmin:g}°, {lmax:g}°], $b$ = [{bmin:g}°, {bmax:g}°]", fontsize=TITLE_SIZE
+    )
+    ax.grid(which="major", ls="--", color="grey", alpha=0.2)
+
 
 def plot_gce_comparison(
     fit_result,
@@ -226,6 +283,7 @@ def plot_gce_comparison(
     output="GCE_Ajello2016_comparison.pdf",
     boundary_subpixels=4,
     max_samples=5000,
+    data_output=None,
 ):
     """Plot the fitted GCE_NFW spectrum against Ajello et al. (2016) Figure 13.
 
@@ -245,6 +303,9 @@ def plot_gce_comparison(
         Supersampling per axis for pixels on the ROI boundary.
     max_samples : int
         Maximum number of correlated parameter samples for the 68% band.
+    data_output : str or Path, optional
+        Also write the plotted fit (energy, best fit and 68% band in the
+        comparison ROI) to this CSV file, e.g. for overlays of several fits.
 
     Returns
     -------
@@ -376,42 +437,14 @@ def plot_gce_comparison(
     )
     _low, _high = np.percentile(_samples, [16, 84], axis=0)
 
-    _fig13 = FIG13_ENVELOPES
-
     # Both spectra are now intrinsic fluxes in exactly the same Galactic rectangle.
     # Assuming the same standard gamma=1 NFW-squared morphology, this is a pure
     # aperture conversion. It does not refit the data or reproduce a different IEM.
-    _labels = {
-        "black": "Pulsars, index-scaled",
-        "green": "OB stars, index-scaled",
-        "red": "Pulsars, intensity-scaled",
-        "blue": "OB stars, intensity-scaled",
-    }
-    _hatches = {"black": "---", "green": "\\\\", "red": "|||", "blue": "///"}
-    _floor = 7.1e-6 * _paper_scale  # lower plotted limit in the original figure
     fig, ax = plt.subplots(figsize=(10, 7), constrained_layout=True)
     # Put a border around the plot
     for spine in ax.spines.values():
         spine.set_visible(True)
-    for color in ("red", "blue", "green", "black"):
-        energy, lo, hi = _fig13[color].T
-        lo, hi = lo * _paper_scale, hi * _paper_scale
-        # NaN = lower boundary was outside the paper's plotted range.
-        # Show only its visible portion, without inventing a faint-energy tail.
-        visible_lo = np.where(np.isfinite(lo), lo, _floor)
-        ax.fill_between(energy, visible_lo, hi, color=color, alpha=0.10)
-        ax.fill_between(
-            energy,
-            visible_lo,
-            hi,
-            facecolor="none",
-            edgecolor=color,
-            hatch=_hatches[color],
-            linewidth=1,
-            label=_labels[color],
-        )
-        ax.plot(energy, lo, color=color, lw=0.8, alpha=0.6)
-        ax.plot(energy, hi, color=color, lw=0.8, alpha=0.6)
+    draw_fig13_envelopes(ax, _paper_scale)
     ax.fill_between(
         _E_MeV,
         _low,
@@ -422,20 +455,19 @@ def plot_gce_comparison(
         zorder=9,
     )
     ax.plot(_E_MeV, _best, color="darkorange", lw=2.8, label="Your GCE_NFW best fit", zorder=10)
-    ax.set(
-        xscale="log",
-        yscale="log",
-        xlim=(1e3, 1e5),
-        ylim=(_floor, max(8e-4 * _paper_scale, 1.1 * np.nanmax(_high))),
-        xlabel="Energy (MeV)",
-        ylabel=r"$E^2\,dN/dE\quad[\mathrm{MeV\,cm^{-2}\,s^{-1}}]$",
-    )
-    _lmin, _lmax, _bmin, _bmax = comparison_roi
-    ax.set_title(f"GCE comparison: l = [{_lmin:g}, {_lmax:g}] deg, b = [{_bmin:g}, {_bmax:g}] deg")
-    ax.grid(which="major", alpha=0.18)
-    ax.legend(fontsize=9, loc="best")
-    plt.ylim(1e-5, 2e-3)
-    # plt.show()
+    style_gce_axes(ax, comparison_roi)
+    ax.legend(fontsize=LEGEND_SIZE, loc="best", frameon=False)
+    if data_output is not None:
+        np.savetxt(
+            data_output,
+            np.column_stack([_E_MeV, _best, _low, _high]),
+            header=(
+                "GCE_NFW fit in the comparison ROI (E^2 dN/dE, MeV cm^-2 s^-1)\n"
+                f"comparison_roi_deg = {tuple(comparison_roi)}\n"
+                f"paper_scale = {_paper_scale:.8g}\n"
+                "energy_MeV best low68 high68"
+            ),
+        )
     print(
         "Paper envelopes are graphical estimates; no published central curves "
         "or parameter covariance were reconstructed."

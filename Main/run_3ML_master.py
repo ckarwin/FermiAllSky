@@ -99,6 +99,9 @@ fixed_templates = [
 # (MeV, ph cm^-2 s^-1 sr^-1 MeV^-1).
 isotropic_spectrum_file = "/project/ckarwin/astro/chris/annihilation_in_flight/build_analysis_pipeline/Run_19/ThreeML_Analysis/Isotropic/isotropic_fit/output_with_solar_and_loopI_separate/bestfit_33aa0a726a/isotropic_spectrum.txt"
 
+# Results folder of that all-sky fit (for the Loop I comparison plot).
+allsky_results_dir = Path(isotropic_spectrum_file).parent
+
 # --- Fit options ------------------------------------------------------------------
 # Free the normalization of every 4FGL point source within this distance of
 # the GC (0 deg: all point sources stay fixed).
@@ -106,6 +109,12 @@ free_point_source_radius = 0.0 * u.deg
 
 # Fermipy working directory (overrides fileio.outdir in config.yaml).
 fermipy_outdir = "/project/ckarwin/astro/chris/annihilation_in_flight/build_analysis_pipeline/Run_19/ThreeML_Analysis/output"
+
+# --- Plots ------------------------------------------------------------------------
+# After the fit, make all plots, including the GCE comparison, in
+# Plots/<plots_subdir> (see Plots/make_all_plots.py).
+make_plots = True
+plots_subdir = savename
 
 # =============================================================================
 # 1. Source model: 4FGL + GALPROP
@@ -586,12 +595,27 @@ ps_map = gta.model_counts_map(
 )
 ps_map.write(f"output/mcube_point_sources_{savename}.fits", overwrite=True)
 
-# Compare best-fit GCE spectrum with Ajello et al. (2016), Figure 13
-# (writes GCE_Ajello2016_comparison.pdf; see compare_gce_ajello2016.py):
-if include_dm:
+# =============================================================================
+# 9. Plots (Plots/make_all_plots.py)
+# =============================================================================
+
+# Counts and flux spectra, sky maps, 3d residual maps and the GCE, bubble and
+# Loop I comparisons, all in Plots/<plots_subdir>. A failing plot is logged
+# (make_all_plots.log there) and does not stop the others.
+if make_plots:
     import sys
 
-    sys.path.insert(0, str(REPO / "Main"))  # works for copies of this script too
-    from compare_gce_ajello2016 import plot_gce_comparison
+    sys.path.insert(0, str(REPO / "Plots"))  # works for copies of this script too
+    from make_all_plots import make_all_plots
 
-    plot_gce_comparison(jl.results, nfw_file)
+    make_all_plots(
+        REPO / "Plots" / plots_subdir,
+        savename,
+        fermipy_outdir,
+        run_output="output",
+        allsky_results_dir=allsky_results_dir,
+        include_dm=include_dm,
+        include_bubbles=include_bubbles,
+        fit_results=jl.results,
+        nfw_file=nfw_file,
+    )
