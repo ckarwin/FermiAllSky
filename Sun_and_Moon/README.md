@@ -51,9 +51,9 @@ Sun, 180 days for the Moon by default) that can run as a Slurm array.
 `solar_parallel/array_range.txt` without running any chunk:
 
 ```bash
-python -u generate_sun_moon_templates.py /project/ckarwin/astro/chris/annihilation_in_flight/build_analysis_pipeline/Run_19/ThreeML_Analysis/Isotropic/isotropic_fit/config.yaml \
-    --events /project/ckarwin/astro/chris/annihilation_in_flight/build_analysis_pipeline/Run_19/ThreeML_Analysis/Isotropic/isotropic_fit/output/fermipy/ft1_00.fits \
-    --ltcube /project/ckarwin/astro/chris/annihilation_in_flight/build_analysis_pipeline/Run_19/ThreeML_Analysis/Isotropic/isotropic_fit/output/fermipy/ltcube_00.fits \
+python -u generate_sun_moon_templates.py /project/ckarwin/astro/chris/annihilation_in_flight/build_analysis_pipeline/Run_19/ThreeML_Analysis/Isotropic/config.yaml \
+    --events /project/ckarwin/astro/chris/annihilation_in_flight/build_analysis_pipeline/Run_19/ThreeML_Analysis/Isotropic/output/fermipy/ft1_00.fits \
+    --ltcube /project/ckarwin/astro/chris/annihilation_in_flight/build_analysis_pipeline/Run_19/ThreeML_Analysis/Isotropic/output/fermipy/ltcube_00.fits \
     --outdir solar_parallel --prepare-array
 ```
 
@@ -75,9 +75,9 @@ skipped if you resubmit, so a partly failed array can simply be submitted again.
 This is what [`slurm.sh`](slurm.sh) runs (`sbatch slurm.sh`):
 
 ```bash
-python -u generate_sun_moon_templates.py /project/ckarwin/astro/chris/annihilation_in_flight/build_analysis_pipeline/Run_19/ThreeML_Analysis/Isotropic/isotropic_fit/config.yaml \
-    --events /project/ckarwin/astro/chris/annihilation_in_flight/build_analysis_pipeline/Run_19/ThreeML_Analysis/Isotropic/isotropic_fit/output/fermipy/ft1_00.fits \
-    --ltcube /project/ckarwin/astro/chris/annihilation_in_flight/build_analysis_pipeline/Run_19/ThreeML_Analysis/Isotropic/isotropic_fit/output/fermipy/ltcube_00.fits \
+python -u generate_sun_moon_templates.py /project/ckarwin/astro/chris/annihilation_in_flight/build_analysis_pipeline/Run_19/ThreeML_Analysis/Isotropic/config.yaml \
+    --events /project/ckarwin/astro/chris/annihilation_in_flight/build_analysis_pipeline/Run_19/ThreeML_Analysis/Isotropic/output/fermipy/ft1_00.fits \
+    --ltcube /project/ckarwin/astro/chris/annihilation_in_flight/build_analysis_pipeline/Run_19/ThreeML_Analysis/Isotropic/output/fermipy/ltcube_00.fits \
     --outdir solar_parallel --finalize-array
 ```
 
