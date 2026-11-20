@@ -114,6 +114,12 @@ divided by 3 sr, and the fit is evaluated in the same way. This uses no
 assumption about the shape of the 2014 template, and does not depend on how
 the fit splits Loop I between S1 and S2.
 
+The 2025 error bars (about ±18% at low energy, growing above a few GeV) are
+larger than the statistical errors of the 2014 baseline fit in Fig. 15. They
+most likely include systematic uncertainties, which the 2014 paper estimated
+by varying the foreground models and templates but did not publish for
+Loop I. This is why the 2025 points are used here.
+
 **The 2014 and 2015 results differ by about 30–50%** (the fit-to-published
 ratios differ by that much), a measure of the
 systematic uncertainty from how Loop I is modelled (template derived from
