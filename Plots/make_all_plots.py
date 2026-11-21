@@ -168,12 +168,16 @@ def _component_files(info):
 
 
 def _read_cube(path):
-    """(data [E, y, x], EBOUNDS table, header) of a counts or model cube."""
+    """(data [E, y, x], energy-bounds table, header) of a counts or model cube."""
     from astropy.io import fits
 
     with fits.open(path) as hdus:
         data = np.asarray(hdus[0].data, dtype=float)
-        ebounds = hdus["EBOUNDS"].data
+        # The energy table is the second HDU, as calculate_flux assumes. Its
+        # name depends on how the cube was written: EBOUNDS (gtbin, Fermipy
+        # model maps) or BANDS (gammapy's default, e.g. the point-source cube).
+        names = [hdu.name.upper() for hdu in hdus]
+        ebounds = hdus[names.index("EBOUNDS") if "EBOUNDS" in names else 1].data
         ebounds = {"E_MIN": np.asarray(ebounds["E_MIN"], float),
                    "E_MAX": np.asarray(ebounds["E_MAX"], float)}
         header = hdus[0].header.copy()
@@ -273,7 +277,10 @@ def load_cubes(files):
     cubes = {}
     for key, path in files.items():
         if Path(path).is_file():
-            cubes[key] = _read_cube(path)
+            try:
+                cubes[key] = _read_cube(path)
+            except Exception as error:
+                raise RuntimeError(f"Cannot read {path}: {error!r}") from error
         else:
             print(f"[make_all_plots] missing, skipped: {path}")
     for key in ("observed", "model"):
