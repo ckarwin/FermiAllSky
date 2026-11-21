@@ -476,5 +476,5 @@ def plot_gce_comparison(
         "Your band is pointwise and includes K/index/xc correlations. For MLE "
         "it is a covariance approximation, not a profile-likelihood interval."
     )
-    fig.savefig(output, dpi=150, bbox_inches="tight")
+    fig.savefig(output, dpi=300, bbox_inches="tight")
     return fig

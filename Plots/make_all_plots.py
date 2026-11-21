@@ -20,12 +20,15 @@ counts_spectrum.csv                the numbers of that plot
 <name>_flux.dat                    plot_flux.py: ROI flux of each component
 flux_spectra_<savename>.png        plot_flux.py: E^2 dN/dE per component
 count_map.png, model_map.png,      plot_spatial.py: summed counts and model
-residuals.png                      maps, data - model (smoothed)
+residuals[_smoothed].png           maps, data - model (unsmoothed, smoothed)
 GC_<i>-<j>_residual.fits, ...      custom_client.py (3d residual maps):
-residuals_<mode>_<i>-<j>.png       data - model, (data - model)/model and
-residual_maps_<i>-<j>.png          (data - model)/sqrt(model) in energy-bin
-                                   ranges i..j-1; one figure with all three
-                                   (*_smoothed.fits: the smoothed maps plotted)
+residuals_<mode>_<i>-<j>[_smoothed].png
+residual_maps_<i>-<j>[_smoothed].png
+                                   data - model, (data - model)/model and
+                                   (data - model)/sqrt(model) in energy-bin
+                                   ranges i..j-1, each alone and all three in
+                                   one figure; unsmoothed and smoothed
+                                   (*_smoothed.fits: the smoothed maps)
 GCE_Ajello2016_comparison.png      Main/compare_gce_ajello2016.py
 gce_spectrum.csv                   the fitted GCE curve of that plot
 threeML_analysis_results.fits      the 3ML results (to redo the GCE plot)
@@ -47,6 +50,7 @@ import json
 import sys
 import time
 import traceback
+from itertools import product
 from pathlib import Path
 
 import numpy as np
@@ -423,25 +427,24 @@ def spatial_plots(files, cubes, inputs_yaml, plot_dir):
     _close_all()
 
     data, _, header = cubes["observed"]
-    sigma_pix, smooth_text = _smoothing(header)
-    image = smooth_residual(data.sum(axis=0), cubes["model"][0].sum(axis=0), "diff", sigma_pix)
     wcs_2d = WCS(header, naxis=2)
-    fig = plt.figure(figsize=(8, 6))
-    ax = fig.add_subplot(111, projection=wcs_2d)
-    this_max = np.amax(image)
-    im = ax.imshow(image, origin="lower", cmap="seismic", vmin=-1 * this_max, vmax=this_max,
-                   interpolation="none")
-    cbar = plt.colorbar(im, ax=ax, pad=0.02)
-    cbar.set_label("data - model [counts]", fontsize=12)
-    ax.set_xlabel(r"Galactic Longitude [$\circ$]", fontsize=14)
-    ax.set_ylabel(r"Galactic Latitude [$\circ$]", fontsize=14)
-    ax.grid(color="grey", ls=":", alpha=0.5)
-    ax.tick_params(axis="both", which="major", labelsize=14)
-    if smooth_text:
+    for suffix, sigma_pix, smooth_text in _smoothing_variants(header):
+        image = smooth_residual(data.sum(axis=0), cubes["model"][0].sum(axis=0), "diff", sigma_pix)
+        fig = plt.figure(figsize=(8, 6))
+        ax = fig.add_subplot(111, projection=wcs_2d)
+        this_max = np.nanmax(np.abs(image))
+        im = ax.imshow(image, origin="lower", cmap="seismic", vmin=-1 * this_max, vmax=this_max,
+                       interpolation="none")
+        cbar = plt.colorbar(im, ax=ax, pad=0.02)
+        cbar.set_label("data - model [counts]", fontsize=12)
+        ax.set_xlabel(r"Galactic Longitude [$\circ$]", fontsize=14)
+        ax.set_ylabel(r"Galactic Latitude [$\circ$]", fontsize=14)
+        ax.grid(color="grey", ls=":", alpha=0.5)
+        ax.tick_params(axis="both", which="major", labelsize=14)
         ax.set_title(smooth_text, fontsize=14)
-    plt.tight_layout()
-    fig.savefig(Path(plot_dir) / "residuals.png")
-    plt.close(fig)
+        plt.tight_layout()
+        fig.savefig(Path(plot_dir) / f"residuals{suffix}.png")
+        plt.close(fig)
 
 
 def _band_title(ebounds_kev, start, stop):
@@ -504,13 +507,23 @@ def _smoothing(header):
     return sigma_pix, rf"smoothed, $\sigma$ = {RESIDUAL_SMOOTH_SIGMA_DEG:g}$^\circ$"
 
 
+def _smoothing_variants(header):
+    """(file suffix, sigma in pixels, title text) of each version to plot:
+    unsmoothed, and smoothed unless RESIDUAL_SMOOTH_SIGMA_DEG is 0."""
+    sigma_pix, smooth_text = _smoothing(header)
+    variants = [("", 0.0, "unsmoothed")]
+    if sigma_pix > 0:
+        variants.append(("_smoothed", sigma_pix, smooth_text))
+    return variants
+
+
 def residual_maps(files, cubes, inputs_yaml, bins, plot_dir):
     """3d residual maps (custom_client.py) in three forms, per energy range.
 
     lat_binned_analysis writes the unsmoothed FITS maps. Smoothed versions
     (RESIDUAL_SMOOTH_SIGMA_DEG, see smooth_residual) are written beside them
-    as *_smoothed.fits; those are plotted on their own (plot_skymap) and
-    together in residual_maps_<i>-<j>.png.
+    as *_smoothed.fits. Both versions are plotted on their own (plot_skymap)
+    and together in residual_maps_<i>-<j>[_smoothed].png.
     """
     import matplotlib.pyplot as plt
     from astropy.io import fits
@@ -522,34 +535,37 @@ def residual_maps(files, cubes, inputs_yaml, bins, plot_dir):
     ebounds = cubes["observed"][1]
     data_cube, _, header = cubes["observed"]
     model_cube = cubes["model"][0]
-    sigma_pix, smooth_text = _smoothing(header)
-    smoothed = {}
-    for mode, suffix, label in RESIDUAL_MODES:
+    variants = _smoothing_variants(header)
+    maps = {}  # (suffix, mode, start, stop) -> FITS file
+    for mode, _, label in RESIDUAL_MODES:
         # Unsmoothed maps, as before (lat_binned_analysis).
         outfiles = instance.residual_map2(None, None, str(files["observed"]), str(files["model"]),
                                           mode=mode, bins=bins, outdir=str(plot_dir))
         for (start, stop), path in zip(bins, outfiles):
-            # Smoothed version on the same grid and header; this is what is plotted.
-            with fits.open(path) as hdus:
-                hdus[0].data = smooth_residual(data_cube[start:stop].sum(axis=0),
-                                               model_cube[start:stop].sum(axis=0), mode, sigma_pix)
-                out = path.replace(".fits", "_smoothed.fits") if sigma_pix > 0 else path
+            for suffix, sigma_pix, smooth_text in variants:
+                out = path
                 if sigma_pix > 0:
-                    hdus.writeto(out, overwrite=True)
-            smoothed[(mode, start, stop)] = out
-            title = _band_title(ebounds, start, stop) + (f" ({smooth_text})" if smooth_text else "")
-            instance_plots.plot_skymap(
-                out, str(Path(plot_dir) / f"residuals_{mode}_{start}-{stop}.png"),
-                plot_type="residuals", colorbar_label=label, title=title)
-            _close_all()
+                    # Smoothed version on the same grid and header.
+                    out = path.replace(".fits", f"{suffix}.fits")
+                    with fits.open(path) as hdus:
+                        hdus[0].data = smooth_residual(data_cube[start:stop].sum(axis=0),
+                                                       model_cube[start:stop].sum(axis=0),
+                                                       mode, sigma_pix)
+                        hdus.writeto(out, overwrite=True)
+                maps[(suffix, mode, start, stop)] = out
+                title = f"{_band_title(ebounds, start, stop)} ({smooth_text})"
+                instance_plots.plot_skymap(
+                    out, str(Path(plot_dir) / f"residuals_{mode}_{start}-{stop}{suffix}.png"),
+                    plot_type="residuals", colorbar_label=label, title=title)
+                _close_all()
 
     # One figure per energy range with the three forms side by side, in the
     # style of plot_skymap (seismic, symmetric colour scale). The scale is the
     # 99.5th percentile of |residual|, so a few extreme pixels do not hide the rest.
-    for start, stop in bins:
+    for (start, stop), (suffix, _, smooth_text) in product(bins, variants):
         fig = plt.figure(figsize=(24, 6.6))
         for j, (mode, _, label) in enumerate(RESIDUAL_MODES):
-            with fits.open(smoothed[(mode, start, stop)]) as hdus:
+            with fits.open(maps[(suffix, mode, start, stop)]) as hdus:
                 image = np.asarray(hdus[0].data, dtype=float)
                 wcs_2d = WCS(hdus[0].header, naxis=2)
             ax = fig.add_subplot(1, 3, j + 1, projection=wcs_2d)
@@ -566,9 +582,9 @@ def residual_maps(files, cubes, inputs_yaml, bins, plot_dir):
             ax.grid(color="grey", ls=":", alpha=0.5)
             ax.tick_params(axis="both", which="major", labelsize=14)
         fig.subplots_adjust(wspace=0.55)
-        title = _band_title(ebounds, start, stop) + (f" ({smooth_text})" if smooth_text else "")
-        fig.suptitle(title, fontsize=16)
-        fig.savefig(Path(plot_dir) / f"residual_maps_{start}-{stop}.png", bbox_inches="tight")
+        fig.suptitle(f"{_band_title(ebounds, start, stop)} ({smooth_text})", fontsize=16)
+        fig.savefig(Path(plot_dir) / f"residual_maps_{start}-{stop}{suffix}.png",
+                    bbox_inches="tight")
         plt.close(fig)
 
 
@@ -652,12 +668,13 @@ def make_all_plots(
     """
     import matplotlib.pyplot as plt
 
-    from plot_style import BORDER
+    from plot_style import BORDER, DPI
 
     plt.switch_backend("Agg")
     # Matplotlib's default style with a full border, not the style set by
     # threeML in run_3ML_master.py (which hides the top and right axis lines).
-    with plt.style.context("default"), plt.rc_context(BORDER):
+    # Every PNG is saved at DPI (plot_style.py).
+    with plt.style.context("default"), plt.rc_context({**BORDER, "savefig.dpi": DPI}):
         return _make_all_plots(
             plot_dir, savename, fermipy_outdir, run_output, allsky_results_dir, include_dm,
             include_bubbles, fit_results, nfw_file, residual_bins, inputs_yaml, label)

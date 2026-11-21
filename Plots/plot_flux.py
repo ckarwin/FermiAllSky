@@ -159,6 +159,6 @@ ax2.set_xlabel("Energy [MeV]", fontsize=16)
 ax2.set_ylabel("(D - M)/M", fontsize=16)
 ax2.tick_params(axis='both', labelsize=14)
 ax2.grid(ls="--",color="grey",alpha=0.2)
-plt.savefig(f"flux_spectra_{savename}.png")
+plt.savefig(f"flux_spectra_{savename}.png", dpi=300)
 plt.show()
 

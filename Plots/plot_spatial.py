@@ -55,6 +55,6 @@ ax.grid(color="grey", ls=":", alpha=0.5)
 ax.tick_params(axis='both', which='major', labelsize=14)
 
 plt.tight_layout()
-plt.savefig("residuals.png")
+plt.savefig("residuals.png", dpi=300)
 plt.show()
 

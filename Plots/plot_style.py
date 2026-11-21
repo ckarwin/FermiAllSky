@@ -11,7 +11,10 @@ import matplotlib
 # style, for example, hides the top and right lines).
 BORDER = {"axes.spines.top": True, "axes.spines.right": True,
           "axes.spines.left": True, "axes.spines.bottom": True}
+# Resolution of every saved PNG (dots per inch).
+DPI = 300
 matplotlib.rcParams.update(BORDER)
+matplotlib.rcParams["savefig.dpi"] = DPI
 
 LABEL_SIZE = 16
 TICK_SIZE = 14

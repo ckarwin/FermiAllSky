@@ -17,7 +17,7 @@ from pathlib import Path
 import matplotlib.pyplot as plt
 import numpy as np
 
-from plot_style import GRID, LABEL_SIZE, LEGEND_SIZE, TICK_SIZE
+from plot_style import GRID, LABEL_SIZE, LEGEND_SIZE, TICK_SIZE, DPI
 
 # ---------------------------------------------------------------------------
 # Settings
@@ -97,7 +97,7 @@ def main():
     ar.grid(**GRID)
 
     if OUTPUT:
-        fig.savefig(OUTPUT, dpi=150, bbox_inches="tight")
+        fig.savefig(OUTPUT, dpi=DPI, bbox_inches="tight")
     plt.show()
 
 

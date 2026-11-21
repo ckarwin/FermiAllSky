@@ -24,7 +24,7 @@ REFERENCE_DIR = SCRIPT_DIR / "reference"
 LOOPI_DIR = SCRIPT_DIR.parents[1] / "LoopI"
 sys.path.insert(0, str(LOOPI_DIR))
 sys.path.insert(0, str(SCRIPT_DIR.parent))
-from plot_style import GRID, LABEL_SIZE, TICK_SIZE  # noqa: E402
+from plot_style import GRID, LABEL_SIZE, TICK_SIZE, DPI  # noqa: E402
 from shell_geometry import SHELLS, path_length  # noqa: E402
 
 # ---------------------------------------------------------------------------
@@ -354,7 +354,7 @@ def main(allsky_dir=ALLSKY_RESULTS_DIR, label=FIT_LABEL, outdir=SCRIPT_DIR, pref
     axr.grid(**GRID)
     axr.text(0.01, 0.05, "dashed: mean ratio over the energies it is computed for",
              transform=axr.transAxes, fontsize=10, color="0.3")
-    fig.savefig(outdir / f"{prefix}comparison.png", dpi=150, bbox_inches="tight")
+    fig.savefig(outdir / f"{prefix}comparison.png", dpi=DPI, bbox_inches="tight")
     if show:
         plt.show()
     plt.close(fig)
