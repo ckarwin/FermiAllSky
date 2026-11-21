@@ -64,13 +64,13 @@ reloads the saved 3ML results).
 | `<name>_flux.dat` | Flux of each component in the region, per energy bin (`observed`, `model`, `pion_decay`, `ics`, `bremss`, `isodiff`, `pcs`, `gce`, `bubbles_low`, `bubbles_high`, `sun`, `moon`, `loopI_SI`, `loopI_S2`) |
 | `flux_spectra_<savename>.png` | E² dN/dE of each component, with (D − M)/M below |
 | `count_map.png`, `model_map.png` | Counts and model summed over energy |
-| `residuals.png` | Data − model summed over energy (smoothed) |
+| `residuals.png`, `residuals_smoothed.png` | Data − model summed over energy, unsmoothed and smoothed |
 | `GC_<i>-<j>_residual.fits` | Data − model in energy bins i to j−1 |
 | `GC_<i>-<j>_fractional_residual.fits` | (Data − model) / model |
 | `GC_<i>-<j>_sqrt_residual.fits` | (Data − model) / √model |
-| `GC_<i>-<j>_*_smoothed.fits` | The same three maps after smoothing (the ones plotted) |
-| `residuals_<diff/frac/sqrt>_<i>-<j>.png` | Each smoothed map |
-| `residual_maps_<i>-<j>.png` | The three smoothed maps of one energy range side by side |
+| `GC_<i>-<j>_*_smoothed.fits` | The same three maps after smoothing |
+| `residuals_<diff/frac/sqrt>_<i>-<j>.png`, `..._smoothed.png` | Each map, unsmoothed and smoothed |
+| `residual_maps_<i>-<j>.png`, `..._smoothed.png` | The three maps of one energy range side by side, unsmoothed and smoothed |
 | `GCE_Ajello2016_comparison.png`, `gce_spectrum.csv` | GCE spectrum vs. Ajello et al. (2016) ([Main](../Main/README.md#comparing-the-gce-with-ajello-et-al-2016)) |
 | `threeML_analysis_results.fits` | The 3ML results of the fit |
 | `bubbles_comparison.png`, `bubbles_*.csv` | Bubble spectra vs. Ackermann et al. (2017) ([`compare_bubbles/`](compare_bubbles/README.md)) |
@@ -88,11 +88,13 @@ At the top of `make_all_plots.py`:
 |---|---|---|
 | `COUNTS_YLIM`, `COUNTS_RESID_YLIM` | `(1e2, 1e7)`, `(-1, 1)` | Y ranges of the counts spectrum and its (D − M)/M panel |
 | `FLUX_YLIM`, `FLUX_RESID_YLIM` | `(1e-6, 1)`, `(-0.1, 0.1)` | Y ranges of the flux spectrum and its (D − M)/M panel |
-| `RESIDUAL_SMOOTH_SIGMA_DEG` | `1.0` | Gaussian smoothing of the residual maps (σ in degrees; 0 for none) |
+| `RESIDUAL_SMOOTH_SIGMA_DEG` | `1.0` | Gaussian smoothing of the `*_smoothed` residual maps (σ in degrees; 0 for unsmoothed maps only) |
 | `RESIDUAL_BINS` | `[[0, 5], [5, 12], [12, 20]]` | Energy-bin ranges of the residual maps |
 
 To change a setting for a finished fit, edit it and run
 `python make_all_plots.py Plots/<plots_subdir>`.
+
+Every PNG is saved at 300 dpi: `DPI` in `plot_style.py`.
 
 ### Smoothing of the residual maps
 
@@ -109,8 +111,9 @@ kernel before each residual is formed:
 
 σ = 1° is about the LAT PSF (68% containment) at 1 GeV. The PSF is broader at
 lower energies and narrower at higher energies, so features smaller than the
-kernel are smoothed away in the high-energy maps. The unsmoothed maps are kept
-as FITS files.
+kernel are smoothed away in the high-energy maps, so each residual map is
+also plotted unsmoothed.
+
 The default residual-map energy ranges are 300 MeV–1.28 GeV, 1.28–9.79 GeV
 and 9.79–100 GeV (energy bins 0–4, 5–11 and 12–19 for 300 MeV–100 GeV at 8
 bins per decade). The side-by-side residual figure scales each map to the
@@ -204,7 +207,7 @@ to `output/` in the run directory).
 |---|---|
 | `make_counts_plot.py` | `counts_spectra.png` |
 | `plot_flux.py` | `<name>_flux.dat` (with `calculate_flux`), then `flux_spectra_<savename>.png`. It contains a `sys.exit()` after the flux calculations; remove it to make the plot. |
-| `plot_spatial.py` | `count_map.png`, `model_map.png`, `residuals.png` |
+| `plot_spatial.py` | `count_map.png`, `model_map.png`, `residuals.png` (unsmoothed) |
 | `custom_client.py` | Maps with `lat_binned_analysis`, including residual maps in energy ranges. The model XML written by Fermipy refers to `$(FERMIPY_DATA_DIR)`; replace it with the actual path before using it here. |
 
 The component file names follow the source names of the inner-Galaxy fit (for

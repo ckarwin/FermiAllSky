@@ -30,7 +30,7 @@ sys.path.insert(0, str(PLOTS_DIR))
 sys.path.insert(0, str(PLOTS_DIR / "compare_bubbles"))
 sys.path.insert(0, str(PLOTS_DIR / "compare_loopI"))
 sys.path.insert(0, str(PLOTS_DIR.parent / "Main"))
-from plot_style import GRID, LABEL_SIZE, LEGEND_SIZE, RUN_COLOURS, TICK_SIZE  # noqa: E402
+from plot_style import GRID, LABEL_SIZE, LEGEND_SIZE, RUN_COLOURS, TICK_SIZE, DPI  # noqa: E402
 
 # ---------------------------------------------------------------------------
 # Settings
@@ -57,7 +57,7 @@ def _folder(path):
 
 
 def _save(fig, outdir, name):
-    fig.savefig(outdir / f"{name}.png", dpi=150, bbox_inches="tight")
+    fig.savefig(outdir / f"{name}.png", dpi=DPI, bbox_inches="tight")
     plt.close(fig)
     print(f"Wrote {outdir / name}.png")
 

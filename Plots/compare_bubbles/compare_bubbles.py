@@ -43,7 +43,7 @@ HOLE_FILL_RADIUS_DEG = 2.0
 SCRIPT_DIR = Path(__file__).resolve().parent
 REFERENCE_DIR = SCRIPT_DIR / "reference"
 sys.path.insert(0, str(SCRIPT_DIR.parent))
-from plot_style import GRID, LABEL_SIZE, LEGEND_SIZE, TICK_SIZE, TITLE_SIZE  # noqa: E402
+from plot_style import GRID, LABEL_SIZE, LEGEND_SIZE, TICK_SIZE, TITLE_SIZE, DPI  # noqa: E402
 
 # Panels: (tag, key in the published YAML, title, colour of the fit).
 COMPONENTS = [
@@ -228,7 +228,7 @@ def main(low_file=LOW_LAT_FLUX_FILE, high_file=HIGH_LAT_FLUX_FILE, label=FIT_LAB
             reference_rows.append({"component": tag, "energy_GeV": energy,
                                    "paper_roi_E2F": sed, "aperture_factor": factor})
 
-    fig.savefig(outdir / f"{prefix}comparison.png", dpi=180)
+    fig.savefig(outdir / f"{prefix}comparison.png", dpi=DPI)
     if show:
         plt.show()
     plt.close(fig)
