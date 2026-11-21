@@ -14,22 +14,23 @@ or again later, from the files the fit left behind:
 Everything goes to ``plot_dir`` (a folder inside Plots/):
 
 =================================  ============================================
-counts_spectra.png/.pdf            make_counts_plot.py: counts per component,
+counts_spectra.png                 make_counts_plot.py: counts per component,
                                    (D - M)/M below
 counts_spectrum.csv                the numbers of that plot
 <name>_flux.dat                    plot_flux.py: ROI flux of each component
-flux_spectra_<savename>.png/.pdf   plot_flux.py: E^2 dN/dE per component
+flux_spectra_<savename>.png        plot_flux.py: E^2 dN/dE per component
 count_map.png, model_map.png,      plot_spatial.py: summed counts and model
-residuals.png                      maps, data - model
+residuals.png                      maps, data - model (smoothed)
 GC_<i>-<j>_residual.fits, ...      custom_client.py (3d residual maps):
 residuals_<mode>_<i>-<j>.png       data - model, (data - model)/model and
 residual_maps_<i>-<j>.png          (data - model)/sqrt(model) in energy-bin
                                    ranges i..j-1; one figure with all three
-GCE_Ajello2016_comparison.pdf/png  Main/compare_gce_ajello2016.py
+                                   (*_smoothed.fits: the smoothed maps plotted)
+GCE_Ajello2016_comparison.png      Main/compare_gce_ajello2016.py
 gce_spectrum.csv                   the fitted GCE curve of that plot
 threeML_analysis_results.fits      the 3ML results (to redo the GCE plot)
-bubbles_comparison.png/.pdf, ...   compare_bubbles/compare_bubbles.py
-loopI_comparison.png/.pdf, ...     compare_loopI/compare_loopI.py (all-sky fit)
+bubbles_comparison.png, ...        compare_bubbles/compare_bubbles.py
+loopI_comparison.png, ...          compare_loopI/compare_loopI.py (all-sky fit)
 run_info.json                      inputs of this run (for compare_fits.py)
 make_all_plots.log                 which steps worked
 =================================  ============================================
@@ -53,6 +54,22 @@ import numpy as np
 PLOTS_DIR = Path(__file__).resolve().parent
 REPO = PLOTS_DIR.parent
 sys.path.insert(0, str(PLOTS_DIR))
+
+# ---------------------------------------------------------------------------
+# Settings
+# ---------------------------------------------------------------------------
+
+# Y ranges of the counts and flux spectra (top panel, then (D - M)/M panel).
+COUNTS_YLIM = (1e2, 1e7)
+COUNTS_RESID_YLIM = (-1, 1)
+FLUX_YLIM = (1e-6, 1e0)
+FLUX_RESID_YLIM = (-0.1, 0.1)
+
+# Gaussian smoothing of the residual maps (sigma in degrees; 0 = none).
+# Data and model are smoothed with the same kernel before forming each
+# residual, so (data - model)/sqrt(model) stays a significance per kernel
+# (see smooth_residual). 1 deg is about the LAT PSF (68%) at 1 GeV.
+RESIDUAL_SMOOTH_SIGMA_DEG = 1.0
 
 # Energy-bin index ranges [start, stop) of the 3d residual maps (custom_client.py):
 # 300 MeV - 1.28 GeV, 1.28 - 9.79 GeV, 9.79 - 100 GeV for 300 MeV - 100 GeV at 8 bins/decade.
@@ -298,7 +315,7 @@ def _energy_axis(cubes):
 
 
 def counts_plot(cubes, plot_dir):
-    """counts_spectra.png/.pdf and counts_spectrum.csv (make_counts_plot.py)."""
+    """counts_spectra.png and counts_spectrum.csv (make_counts_plot.py)."""
     import matplotlib.pyplot as plt
 
     energy, xerr = _energy_axis(cubes)
@@ -323,7 +340,7 @@ def counts_plot(cubes, plot_dir):
         if key in counts:
             ax1.loglog(energy, counts[key], **style)
     ax1.set_xlim(3e2, 0.1e6)
-    ax1.set_ylim(1e2, 1e7)
+    ax1.set_ylim(*COUNTS_YLIM)
     ax1.set_ylabel("Counts", fontsize=16)
     ax1.tick_params(axis="both", labelsize=14)
     ax1.legend(loc=1, ncol=2, frameon=False, fontsize=10)
@@ -332,13 +349,12 @@ def counts_plot(cubes, plot_dir):
     ax2.semilogx(energy, resid, ls="", color="black", marker="s")
     ax2.errorbar(energy, resid, xerr=xerr, yerr=resid_err, ls="", color="black", marker="s")
     ax2.axhline(y=0, ls="-", color="grey", lw=1)
-    ax2.set_ylim(-1, 1)
+    ax2.set_ylim(*COUNTS_RESID_YLIM)
     ax2.set_xlabel("Energy [MeV]", fontsize=16)
     ax2.set_ylabel("(D - M)/M", fontsize=16)
     ax2.tick_params(axis="both", labelsize=14)
     ax2.grid(ls="--", color="grey", alpha=0.2)
     fig.savefig(Path(plot_dir) / "counts_spectra.png")
-    fig.savefig(Path(plot_dir) / "counts_spectra.pdf")
     plt.close(fig)
 
 
@@ -354,7 +370,7 @@ def flux_tables(cubes, files, exposure_file, plot_dir):
 
 
 def flux_plot(cubes, fluxes, savename, plot_dir):
-    """flux_spectra_<savename>.png/.pdf (plot_flux.py)."""
+    """flux_spectra_<savename>.png (plot_flux.py)."""
     import matplotlib.pyplot as plt
 
     energy, xerr = _energy_axis(cubes)
@@ -374,7 +390,7 @@ def flux_plot(cubes, fluxes, savename, plot_dir):
         if key in fluxes:
             ax1.loglog(*fluxes[key], **style)
     ax1.set_xlim(3e2, 0.1e6)
-    ax1.set_ylim(1e-6, 1e0)
+    ax1.set_ylim(*FLUX_YLIM)
     ax1.set_ylabel(r"$\mathrm{E^2 dN/dE \  [MeV \ cm^{-2} \ s^{-1}]}$", fontsize=16)
     ax1.tick_params(axis="both", labelsize=14)
     ax1.legend(loc=1, ncol=3, frameon=False, fontsize=12)
@@ -383,13 +399,12 @@ def flux_plot(cubes, fluxes, savename, plot_dir):
     ax2.semilogx(energy, resid, ls="", color="black", marker="s")
     ax2.errorbar(energy, resid, xerr=xerr, yerr=resid_err, ls="", color="black", marker="s")
     ax2.axhline(y=0, ls="-", color="grey", lw=1)
-    ax2.set_ylim(-0.1, 0.1)
+    ax2.set_ylim(*FLUX_RESID_YLIM)
     ax2.set_xlabel("Energy [MeV]", fontsize=16)
     ax2.set_ylabel("(D - M)/M", fontsize=16)
     ax2.tick_params(axis="both", labelsize=14)
     ax2.grid(ls="--", color="grey", alpha=0.2)
     fig.savefig(Path(plot_dir) / f"flux_spectra_{savename}.png")
-    fig.savefig(Path(plot_dir) / f"flux_spectra_{savename}.pdf")
     plt.close(fig)
 
 
@@ -408,7 +423,8 @@ def spatial_plots(files, cubes, inputs_yaml, plot_dir):
     _close_all()
 
     data, _, header = cubes["observed"]
-    image = data.sum(axis=0) - cubes["model"][0].sum(axis=0)
+    sigma_pix, smooth_text = _smoothing(header)
+    image = smooth_residual(data.sum(axis=0), cubes["model"][0].sum(axis=0), "diff", sigma_pix)
     wcs_2d = WCS(header, naxis=2)
     fig = plt.figure(figsize=(8, 6))
     ax = fig.add_subplot(111, projection=wcs_2d)
@@ -421,6 +437,8 @@ def spatial_plots(files, cubes, inputs_yaml, plot_dir):
     ax.set_ylabel(r"Galactic Latitude [$\circ$]", fontsize=14)
     ax.grid(color="grey", ls=":", alpha=0.5)
     ax.tick_params(axis="both", which="major", labelsize=14)
+    if smooth_text:
+        ax.set_title(smooth_text, fontsize=14)
     plt.tight_layout()
     fig.savefig(Path(plot_dir) / "residuals.png")
     plt.close(fig)
@@ -436,12 +454,63 @@ def _band_title(ebounds_kev, start, stop):
     return f"{fmt(ebounds_kev['E_MIN'][start] / 1000)} - {fmt(ebounds_kev['E_MAX'][stop - 1] / 1000)}"
 
 
+def smooth_residual(data, model, mode, sigma_pix):
+    """Residual of 2d data and model maps after Gaussian smoothing.
+
+    The kernel k (truncated at 4 sigma) is applied to data and model alike:
+
+    * diff: (k*D - k*M) / (k*1): mean data - model per pixel within the kernel
+      [counts per pixel], so the units match the unsmoothed map.
+    * frac: (k*D - k*M) / (k*M).
+    * sqrt: (k*D - k*M) / sqrt(k^2*M): the significance of the smoothed excess
+      for Poisson data (its variance is k^2*M), so it stays ~N(0, 1) where the
+      model is right.
+
+    Near the map edges the kernel is cut by the map boundary; all three forms
+    use the same cut kernel, so they stay consistent there. sigma_pix <= 0
+    gives the unsmoothed residual.
+    """
+    from scipy.signal import fftconvolve
+
+    data, model = np.asarray(data, float), np.asarray(model, float)
+    if sigma_pix <= 0:
+        d, m, var, norm = data, model, model, np.ones_like(model)
+    else:
+        half = int(np.ceil(4 * sigma_pix))
+        r = np.arange(-half, half + 1)
+        k = np.exp(-(r[:, None] ** 2 + r[None, :] ** 2) / (2 * sigma_pix**2))
+        k /= k.sum()
+
+        def conv(image, kernel):
+            return fftconvolve(image, kernel, mode="same")
+
+        d, m = conv(data, k), conv(model, k)
+        var, norm = conv(model, k**2), conv(np.ones_like(model), k)
+    with np.errstate(divide="ignore", invalid="ignore"):
+        if mode == "diff":
+            return (d - m) / norm
+        if mode == "frac":
+            return (d - m) / m
+        if mode == "sqrt":
+            return (d - m) / np.sqrt(var)
+    raise ValueError("mode must be 'diff', 'frac' or 'sqrt'")
+
+
+def _smoothing(header):
+    """(sigma in pixels, text for titles) of RESIDUAL_SMOOTH_SIGMA_DEG for a map header."""
+    if RESIDUAL_SMOOTH_SIGMA_DEG <= 0:
+        return 0.0, ""
+    sigma_pix = RESIDUAL_SMOOTH_SIGMA_DEG / abs(float(header["CDELT2"]))
+    return sigma_pix, rf"smoothed, $\sigma$ = {RESIDUAL_SMOOTH_SIGMA_DEG:g}$^\circ$"
+
+
 def residual_maps(files, cubes, inputs_yaml, bins, plot_dir):
     """3d residual maps (custom_client.py) in three forms, per energy range.
 
-    lat_binned_analysis writes the FITS maps; each is plotted on its own
-    (plot_skymap) and the three forms are shown together in
-    residual_maps_<i>-<j>.png.
+    lat_binned_analysis writes the unsmoothed FITS maps. Smoothed versions
+    (RESIDUAL_SMOOTH_SIGMA_DEG, see smooth_residual) are written beside them
+    as *_smoothed.fits; those are plotted on their own (plot_skymap) and
+    together in residual_maps_<i>-<j>.png.
     """
     import matplotlib.pyplot as plt
     from astropy.io import fits
@@ -451,16 +520,27 @@ def residual_maps(files, cubes, inputs_yaml, bins, plot_dir):
     instance = Analysis(str(inputs_yaml))
     instance_plots = Plots(str(inputs_yaml))
     ebounds = cubes["observed"][1]
-    written = {}
-    for mode, _, label in RESIDUAL_MODES:
+    data_cube, _, header = cubes["observed"]
+    model_cube = cubes["model"][0]
+    sigma_pix, smooth_text = _smoothing(header)
+    smoothed = {}
+    for mode, suffix, label in RESIDUAL_MODES:
+        # Unsmoothed maps, as before (lat_binned_analysis).
         outfiles = instance.residual_map2(None, None, str(files["observed"]), str(files["model"]),
                                           mode=mode, bins=bins, outdir=str(plot_dir))
         for (start, stop), path in zip(bins, outfiles):
-            written[(mode, start, stop)] = path
+            # Smoothed version on the same grid and header; this is what is plotted.
+            with fits.open(path) as hdus:
+                hdus[0].data = smooth_residual(data_cube[start:stop].sum(axis=0),
+                                               model_cube[start:stop].sum(axis=0), mode, sigma_pix)
+                out = path.replace(".fits", "_smoothed.fits") if sigma_pix > 0 else path
+                if sigma_pix > 0:
+                    hdus.writeto(out, overwrite=True)
+            smoothed[(mode, start, stop)] = out
+            title = _band_title(ebounds, start, stop) + (f" ({smooth_text})" if smooth_text else "")
             instance_plots.plot_skymap(
-                path, str(Path(plot_dir) / f"residuals_{mode}_{start}-{stop}.png"),
-                plot_type="residuals", colorbar_label=label,
-                title=_band_title(ebounds, start, stop))
+                out, str(Path(plot_dir) / f"residuals_{mode}_{start}-{stop}.png"),
+                plot_type="residuals", colorbar_label=label, title=title)
             _close_all()
 
     # One figure per energy range with the three forms side by side, in the
@@ -469,7 +549,7 @@ def residual_maps(files, cubes, inputs_yaml, bins, plot_dir):
     for start, stop in bins:
         fig = plt.figure(figsize=(24, 6.6))
         for j, (mode, _, label) in enumerate(RESIDUAL_MODES):
-            with fits.open(written[(mode, start, stop)]) as hdus:
+            with fits.open(smoothed[(mode, start, stop)]) as hdus:
                 image = np.asarray(hdus[0].data, dtype=float)
                 wcs_2d = WCS(hdus[0].header, naxis=2)
             ax = fig.add_subplot(1, 3, j + 1, projection=wcs_2d)
@@ -486,25 +566,25 @@ def residual_maps(files, cubes, inputs_yaml, bins, plot_dir):
             ax.grid(color="grey", ls=":", alpha=0.5)
             ax.tick_params(axis="both", which="major", labelsize=14)
         fig.subplots_adjust(wspace=0.55)
-        fig.suptitle(_band_title(ebounds, start, stop), fontsize=16)
+        title = _band_title(ebounds, start, stop) + (f" ({smooth_text})" if smooth_text else "")
+        fig.suptitle(title, fontsize=16)
         fig.savefig(Path(plot_dir) / f"residual_maps_{start}-{stop}.png", bbox_inches="tight")
         plt.close(fig)
 
 
 def gce_plot(fit_results, nfw_file, plot_dir):
-    """GCE_Ajello2016_comparison.pdf/.png and gce_spectrum.csv."""
+    """GCE_Ajello2016_comparison.png and gce_spectrum.csv."""
     sys.path.insert(0, str(REPO / "Main"))
     from compare_gce_ajello2016 import plot_gce_comparison
 
-    fig = plot_gce_comparison(fit_results, nfw_file,
-                              output=Path(plot_dir) / "GCE_Ajello2016_comparison.pdf",
+    plot_gce_comparison(fit_results, nfw_file,
+                              output=Path(plot_dir) / "GCE_Ajello2016_comparison.png",
                               data_output=Path(plot_dir) / "gce_spectrum.csv")
-    fig.savefig(Path(plot_dir) / "GCE_Ajello2016_comparison.png", dpi=150, bbox_inches="tight")
     _close_all()
 
 
 def bubbles_plot(plot_dir, label):
-    """bubbles_comparison.png/.pdf etc. (compare_bubbles.py)."""
+    """bubbles_comparison.png etc. (compare_bubbles.py)."""
     sys.path.insert(0, str(PLOTS_DIR / "compare_bubbles"))
     import compare_bubbles
 
@@ -514,7 +594,7 @@ def bubbles_plot(plot_dir, label):
 
 
 def loopI_plot(allsky_results_dir, plot_dir, label):
-    """loopI_comparison.png/.pdf etc. (compare_loopI.py, from the all-sky fit)."""
+    """loopI_comparison.png etc. (compare_loopI.py, from the all-sky fit)."""
     sys.path.insert(0, str(PLOTS_DIR / "compare_loopI"))
     import compare_loopI
 
@@ -572,7 +652,20 @@ def make_all_plots(
     """
     import matplotlib.pyplot as plt
 
+    from plot_style import BORDER
+
     plt.switch_backend("Agg")
+    # Matplotlib's default style with a full border, not the style set by
+    # threeML in run_3ML_master.py (which hides the top and right axis lines).
+    with plt.style.context("default"), plt.rc_context(BORDER):
+        return _make_all_plots(
+            plot_dir, savename, fermipy_outdir, run_output, allsky_results_dir, include_dm,
+            include_bubbles, fit_results, nfw_file, residual_bins, inputs_yaml, label)
+
+
+def _make_all_plots(plot_dir, savename, fermipy_outdir, run_output, allsky_results_dir, include_dm,
+                    include_bubbles, fit_results, nfw_file, residual_bins, inputs_yaml, label):
+    """make_all_plots, inside the plot style."""
     plot_dir = Path(plot_dir).resolve()
     plot_dir.mkdir(parents=True, exist_ok=True)
     info = dict(

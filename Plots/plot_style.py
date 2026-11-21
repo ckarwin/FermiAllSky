@@ -5,6 +5,14 @@ matplotlib's default font, axis labels at 16 pt, tick labels at 14 pt and a
 light dashed grid.
 """
 
+import matplotlib
+
+# A full border (all four axis lines), whatever style is active (threeML's
+# style, for example, hides the top and right lines).
+BORDER = {"axes.spines.top": True, "axes.spines.right": True,
+          "axes.spines.left": True, "axes.spines.bottom": True}
+matplotlib.rcParams.update(BORDER)
+
 LABEL_SIZE = 16
 TICK_SIZE = 14
 LEGEND_SIZE = 11

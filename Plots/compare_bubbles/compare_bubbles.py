@@ -175,8 +175,8 @@ def comparison_figure():
         ax.grid(**GRID)
     axes[0].set_ylabel(r"$E^2\,dF/dE$ [GeV cm$^{-2}$ s$^{-1}$]", fontsize=LABEL_SIZE)
     fig.suptitle(
-        rf"Integrated over $|l|<{ROI_LON_LIMIT_DEG}^\circ,\ |b|<{ROI_LAT_LIMIT_DEG}^\circ$"
-        " (no point-source holes)", fontsize=TITLE_SIZE)
+        rf"Integrated over $|l|<{ROI_LON_LIMIT_DEG}^\circ,\ |b|<{ROI_LAT_LIMIT_DEG}^\circ$",
+        fontsize=TITLE_SIZE)
     return fig, axes
 
 
@@ -192,7 +192,7 @@ def main(low_file=LOW_LAT_FLUX_FILE, high_file=HIGH_LAT_FLUX_FILE, label=FIT_LAB
 
     low_file, high_file: flux tables of the two bubble components (relative
     paths are taken beside this script). Outputs go to `outdir`, with
-    `prefix` before each file name: comparison.png/.pdf,
+    `prefix` before each file name: comparison.png,
     converted_reference.csv and summary.csv.
     """
     outdir = Path(outdir)
@@ -229,7 +229,6 @@ def main(low_file=LOW_LAT_FLUX_FILE, high_file=HIGH_LAT_FLUX_FILE, label=FIT_LAB
                                    "paper_roi_E2F": sed, "aperture_factor": factor})
 
     fig.savefig(outdir / f"{prefix}comparison.png", dpi=180)
-    fig.savefig(outdir / f"{prefix}comparison.pdf")
     if show:
         plt.show()
     plt.close(fig)

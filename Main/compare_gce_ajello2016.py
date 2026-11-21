@@ -5,7 +5,7 @@ Called by ``run_3ML_master.py`` after the fit when ``include_dm = True``:
     from compare_gce_ajello2016 import plot_gce_comparison
     plot_gce_comparison(jl.results, nfw_path)
 
-It writes ``GCE_Ajello2016_comparison.pdf``: the best-fit E^2 dN/dE of the
+It writes ``GCE_Ajello2016_comparison.png``: the best-fit E^2 dN/dE of the
 ``GCE_NFW`` source (exponentially cutoff power law) with a pointwise 68% band,
 over the four Galactic-centre-excess envelopes of Ajello et al. 2016, ApJ 819,
 44, Figure 13 (pulsar/OB-star cosmic-ray source models, intensity- or
@@ -280,7 +280,7 @@ def plot_gce_comparison(
     fit_result,
     nfw_path,
     comparison_roi=PAPER_ROI,
-    output="GCE_Ajello2016_comparison.pdf",
+    output="GCE_Ajello2016_comparison.png",
     boundary_subpixels=4,
     max_samples=5000,
     data_output=None,
@@ -476,5 +476,5 @@ def plot_gce_comparison(
         "Your band is pointwise and includes K/index/xc correlations. For MLE "
         "it is a covariance approximation, not a profile-likelihood interval."
     )
-    fig.savefig(output, bbox_inches="tight")
+    fig.savefig(output, dpi=150, bbox_inches="tight")
     return fig

@@ -6,13 +6,13 @@ Each fit is a plot folder made by make_all_plots.py (Plots/<plots_subdir>,
 written at the end of run_3ML_master.py). Edit RUNS below. Makes, in
 OUTPUT_DIR:
 
-* gce_overlay.png/.pdf: the GCE spectrum of each fit (best fit and 68% band)
+* gce_overlay.png: the GCE spectrum of each fit (best fit and 68% band)
   over the Ajello et al. (2016) Figure 13 envelopes.
-* bubbles_overlay.png/.pdf: the bubble spectra of each fit over Ackermann et
+* bubbles_overlay.png: the bubble spectra of each fit over Ackermann et
   al. (2017), converted to the fit ROI.
-* loopI_overlay.png/.pdf: the Loop I spectrum of the all-sky fit used by each
+* loopI_overlay.png: the Loop I spectrum of the all-sky fit used by each
   fit, over the published Fermi-LAT Loop I spectra.
-* residuals_overlay.png/.pdf: the fractional counts residual (D - M)/M of
+* residuals_overlay.png: the fractional counts residual (D - M)/M of
   each fit.
 
 A plot is skipped (with a message) when no fit has the files it needs.
@@ -58,9 +58,8 @@ def _folder(path):
 
 def _save(fig, outdir, name):
     fig.savefig(outdir / f"{name}.png", dpi=150, bbox_inches="tight")
-    fig.savefig(outdir / f"{name}.pdf", bbox_inches="tight")
     plt.close(fig)
-    print(f"Wrote {outdir / name}.png/.pdf")
+    print(f"Wrote {outdir / name}.png")
 
 
 def gce_overlay(runs, outdir):
@@ -156,7 +155,6 @@ def loopI_overlay(runs, outdir):
                 label=f"fit, {key}")
     cl.draw_leptonic_curve(ax)
     cl.style_spectrum_axes(ax)
-    ax.set_title("Loop I: all-sky fits vs. published Fermi-LAT spectra", fontsize=13)
     ax.legend(fontsize=9, loc="lower left", frameon=False)
     _save(fig, outdir, "loopI_overlay")
 

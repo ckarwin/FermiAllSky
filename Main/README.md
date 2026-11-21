@@ -183,7 +183,7 @@ later, and how to overlay several fits.
 With `include_dm = True`, the plots include the fitted GCE spectrum (best fit
 and 68% band) against the four GCE results of Ajello et al. (2016), Figure 13,
 in the same region of the sky (by default the paper's 15° × 15° region),
-written to `Plots/<plots_subdir>/GCE_Ajello2016_comparison.pdf`. This is done
+written to `Plots/<plots_subdir>/GCE_Ajello2016_comparison.png`. This is done
 by `plot_gce_comparison` in
 [`compare_gce_ajello2016.py`](compare_gce_ajello2016.py), which can also be
 used on its own:
@@ -193,7 +193,7 @@ from compare_gce_ajello2016 import plot_gce_comparison
 
 plot_gce_comparison(results, "../DM_Model/nfw_gamma1.fits",
                     comparison_roi=(-20, 20, -20, 20),   # 40 x 40 deg region
-                    output="GCE_comparison_40x40.pdf")
+                    output="GCE_comparison_40x40.png")
 ```
 
 Here `results` is a 3ML results object: `jl.results` after a fit, or one read
