@@ -559,30 +559,27 @@ def residual_maps(files, cubes, inputs_yaml, bins, plot_dir):
                     plot_type="residuals", colorbar_label=label, title=title)
                 _close_all()
 
-    # One figure per energy range with the three forms side by side, in the
-    # style of plot_skymap (seismic, symmetric colour scale). The scale is the
-    # 99.5th percentile of |residual|, so a few extreme pixels do not hide the rest.
+    # One figure per energy range with the three forms side by side, drawn
+    # exactly like the single maps of plot_skymap (lat_binned_analysis):
+    # seismic colour map, scale -max to +max of the map, same colour bar.
     for (start, stop), (suffix, _, smooth_text) in product(bins, variants):
-        fig = plt.figure(figsize=(24, 6.6))
+        fig = plt.figure(figsize=(24, 6))
         for j, (mode, _, label) in enumerate(RESIDUAL_MODES):
             with fits.open(maps[(suffix, mode, start, stop)]) as hdus:
                 image = np.asarray(hdus[0].data, dtype=float)
                 wcs_2d = WCS(hdus[0].header, naxis=2)
             ax = fig.add_subplot(1, 3, j + 1, projection=wcs_2d)
-            finite = np.abs(image[np.isfinite(image)])
-            limit = float(np.percentile(finite, 99.5)) if finite.size else 1.0
-            limit = limit if limit > 0 else 1.0
-            im = ax.imshow(image, origin="lower", cmap="seismic", vmin=-limit, vmax=limit,
-                           interpolation="none")
-            cbar = plt.colorbar(im, ax=ax, pad=0.02, fraction=0.046, extend="both")
+            this_max = np.amax(image[np.isfinite(image)])
+            im = ax.imshow(image, origin="lower", cmap="seismic", vmin=-1 * this_max,
+                           vmax=this_max, interpolation="none")
+            cbar = plt.colorbar(im, ax=ax, pad=0.02)
             cbar.set_label(label, fontsize=12)
-            cbar.ax.tick_params(labelsize=12)
             ax.set_xlabel(r"Galactic Longitude [$\circ$]", fontsize=14)
             ax.set_ylabel(r"Galactic Latitude [$\circ$]", fontsize=14)
             ax.grid(color="grey", ls=":", alpha=0.5)
             ax.tick_params(axis="both", which="major", labelsize=14)
-        fig.subplots_adjust(wspace=0.55)
         fig.suptitle(f"{_band_title(ebounds, start, stop)} ({smooth_text})", fontsize=16)
+        fig.tight_layout()
         fig.savefig(Path(plot_dir) / f"residual_maps_{start}-{stop}{suffix}.png",
                     bbox_inches="tight")
         plt.close(fig)
