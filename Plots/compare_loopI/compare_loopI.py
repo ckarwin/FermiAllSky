@@ -301,7 +301,7 @@ def main(allsky_dir=ALLSKY_RESULTS_DIR, label=FIT_LABEL, outdir=SCRIPT_DIR, pref
     """Make the comparison for one all-sky fit.
 
     Outputs go to `outdir`, with `prefix` before each file name:
-    comparison.png/.pdf, converted_fit.csv and summary.csv.
+    comparison.png, converted_fit.csv and summary.csv.
     """
     outdir = Path(outdir)
     references = load_references()
@@ -341,8 +341,6 @@ def main(allsky_dir=ALLSKY_RESULTS_DIR, label=FIT_LABEL, outdir=SCRIPT_DIR, pref
             ax.plot(energy, c["total"], color="k", ls=drawn[key], lw=2, label=f"{label}, {key}")
     draw_leptonic_curve(ax)
     style_spectrum_axes(ax, xlabel=False)
-    ax.set_title("Loop I: all-sky fit vs. published Fermi-LAT spectra\n"
-                 "(fit evaluated over each published region)", fontsize=13)
     ax.legend(fontsize=9, loc="lower left", frameon=False)
     axr.axhline(1, color="0.3", lw=0.8)
     axr.set_yscale("log")
@@ -357,14 +355,13 @@ def main(allsky_dir=ALLSKY_RESULTS_DIR, label=FIT_LABEL, outdir=SCRIPT_DIR, pref
     axr.text(0.01, 0.05, "dashed: mean ratio over the energies it is computed for",
              transform=axr.transAxes, fontsize=10, color="0.3")
     fig.savefig(outdir / f"{prefix}comparison.png", dpi=150, bbox_inches="tight")
-    fig.savefig(outdir / f"{prefix}comparison.pdf", bbox_inches="tight")
     if show:
         plt.show()
     plt.close(fig)
     for r in rows:
         print(f"{r['reference']}: mean fit/published = {r['mean_fit_over_published']:.3f} "
               f"({r['region']})")
-    print(f"Wrote {prefix}comparison.png, {prefix}comparison.pdf, {prefix}converted_fit.csv, "
+    print(f"Wrote {prefix}comparison.png, {prefix}converted_fit.csv, "
           f"{prefix}summary.csv in {outdir}")
     return rows
 

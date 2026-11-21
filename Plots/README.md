@@ -59,30 +59,63 @@ reloads the saved 3ML results).
 
 | File | Contents |
 |---|---|
-| `counts_spectra.png/.pdf` | Counts per energy bin: data, total model and each component, with (D − M)/M below |
+| `counts_spectra.png` | Counts per energy bin: data, total model and each component, with (D − M)/M below |
 | `counts_spectrum.csv` | The numbers of that plot |
 | `<name>_flux.dat` | Flux of each component in the region, per energy bin (`observed`, `model`, `pion_decay`, `ics`, `bremss`, `isodiff`, `pcs`, `gce`, `bubbles_low`, `bubbles_high`, `sun`, `moon`, `loopI_SI`, `loopI_S2`) |
-| `flux_spectra_<savename>.png/.pdf` | E² dN/dE of each component, with (D − M)/M below |
+| `flux_spectra_<savename>.png` | E² dN/dE of each component, with (D − M)/M below |
 | `count_map.png`, `model_map.png` | Counts and model summed over energy |
-| `residuals.png` | Data − model summed over energy |
+| `residuals.png` | Data − model summed over energy (smoothed) |
 | `GC_<i>-<j>_residual.fits` | Data − model in energy bins i to j−1 |
 | `GC_<i>-<j>_fractional_residual.fits` | (Data − model) / model |
 | `GC_<i>-<j>_sqrt_residual.fits` | (Data − model) / √model |
-| `residuals_<diff/frac/sqrt>_<i>-<j>.png` | Each of those maps |
-| `residual_maps_<i>-<j>.png` | The three maps of one energy range side by side |
-| `GCE_Ajello2016_comparison.pdf/.png`, `gce_spectrum.csv` | GCE spectrum vs. Ajello et al. (2016) ([Main](../Main/README.md#comparing-the-gce-with-ajello-et-al-2016)) |
+| `GC_<i>-<j>_*_smoothed.fits` | The same three maps after smoothing (the ones plotted) |
+| `residuals_<diff/frac/sqrt>_<i>-<j>.png` | Each smoothed map |
+| `residual_maps_<i>-<j>.png` | The three smoothed maps of one energy range side by side |
+| `GCE_Ajello2016_comparison.png`, `gce_spectrum.csv` | GCE spectrum vs. Ajello et al. (2016) ([Main](../Main/README.md#comparing-the-gce-with-ajello-et-al-2016)) |
 | `threeML_analysis_results.fits` | The 3ML results of the fit |
-| `bubbles_comparison.png/.pdf`, `bubbles_*.csv` | Bubble spectra vs. Ackermann et al. (2017) ([`compare_bubbles/`](compare_bubbles/README.md)) |
-| `loopI_comparison.png/.pdf`, `loopI_*.csv` | Loop I of the all-sky fit vs. published spectra ([`compare_loopI/`](compare_loopI/README.md)) |
+| `bubbles_comparison.png`, `bubbles_*.csv` | Bubble spectra vs. Ackermann et al. (2017) ([`compare_bubbles/`](compare_bubbles/README.md)) |
+| `loopI_comparison.png`, `loopI_*.csv` | Loop I of the all-sky fit vs. published spectra ([`compare_loopI/`](compare_loopI/README.md)) |
 | `run_info.json` | Inputs of the fit, used to redo the plots and by `compare_fits.py` |
 | `make_all_plots.log` | Which plots were made, and the errors of any that failed |
 
 The GCE and bubble files are made only when the fit includes those components.
-The energy ranges of the residual maps are `RESIDUAL_BINS` at the top of
-`make_all_plots.py`: by default 300 MeV–1.28 GeV, 1.28–9.79 GeV and
-9.79–100 GeV (energy bins 0–4, 5–11 and 12–19 for 300 MeV–100 GeV at 8 bins
-per decade). The side-by-side residual figure scales each map to the 99.5th
-percentile of |residual|, so a few extreme pixels do not wash out the rest.
+
+### Settings
+
+At the top of `make_all_plots.py`:
+
+| Setting | Default | Meaning |
+|---|---|---|
+| `COUNTS_YLIM`, `COUNTS_RESID_YLIM` | `(1e2, 1e7)`, `(-1, 1)` | Y ranges of the counts spectrum and its (D − M)/M panel |
+| `FLUX_YLIM`, `FLUX_RESID_YLIM` | `(1e-6, 1)`, `(-0.1, 0.1)` | Y ranges of the flux spectrum and its (D − M)/M panel |
+| `RESIDUAL_SMOOTH_SIGMA_DEG` | `1.0` | Gaussian smoothing of the residual maps (σ in degrees; 0 for none) |
+| `RESIDUAL_BINS` | `[[0, 5], [5, 12], [12, 20]]` | Energy-bin ranges of the residual maps |
+
+To change a setting for a finished fit, edit it and run
+`python make_all_plots.py Plots/<plots_subdir>`.
+
+### Smoothing of the residual maps
+
+Single 0.2° pixels hold few counts, so unsmoothed residual maps are dominated
+by Poisson noise. The data and the model are smoothed with the same Gaussian
+kernel before each residual is formed:
+
+- data − model: the mean residual per pixel within the kernel, in counts per
+  pixel (as unsmoothed);
+- (data − model) / model: smoothed data over smoothed model, minus 1;
+- (data − model) / √model: the smoothed excess divided by its Poisson
+  uncertainty, so it reads as a significance (about ±1 where the model is
+  right).
+
+σ = 1° is about the LAT PSF (68% containment) at 1 GeV. The PSF is broader at
+lower energies and narrower at higher energies, so features smaller than the
+kernel are smoothed away in the high-energy maps. The unsmoothed maps are kept
+as FITS files.
+The default residual-map energy ranges are 300 MeV–1.28 GeV, 1.28–9.79 GeV
+and 9.79–100 GeV (energy bins 0–4, 5–11 and 12–19 for 300 MeV–100 GeV at 8
+bins per decade). The side-by-side residual figure scales each map to the
+99.5th percentile of |residual|, so a few extreme pixels do not wash out the
+rest.
 
 The flux tables are computed exactly as `lat_binned_analysis`'s
 `calculate_flux` computes them (same sum over pixels, exposure lookup and file
@@ -109,10 +142,10 @@ It writes to `OUTPUT_DIR`:
 
 | File | Contents |
 |---|---|
-| `gce_overlay.png/.pdf` | GCE spectrum of each fit (best fit and 68% band) over the Ajello et al. (2016) results |
-| `bubbles_overlay.png/.pdf` | Bubble spectra of each fit over Ackermann et al. (2017) |
-| `loopI_overlay.png/.pdf` | Loop I spectrum of the all-sky fit used by each fit, over the published spectra |
-| `residuals_overlay.png/.pdf` | (D − M)/M of each fit |
+| `gce_overlay.png` | GCE spectrum of each fit (best fit and 68% band) over the Ajello et al. (2016) results |
+| `bubbles_overlay.png` | Bubble spectra of each fit over Ackermann et al. (2017) |
+| `loopI_overlay.png` | Loop I spectrum of the all-sky fit used by each fit, over the published spectra |
+| `residuals_overlay.png` | (D − M)/M of each fit |
 
 A fit without a component (for example no GCE) is left out of that plot. The
 inner-Galaxy fit keeps Loop I fixed at the all-sky result, so fits that use the

@@ -54,7 +54,7 @@ Written to this folder (each run overwrites them):
 
 | File | Contents |
 |---|---|
-| `comparison.png`, `comparison.pdf` | Published points (one colour each); the fit averaged over each published region (black, one line style per region); the ratio fit/published |
+| `comparison.png` | Published points (one colour each); the fit averaged over each published region (black, one line style per region); the ratio fit/published |
 | `converted_fit.csv` | E² I of the fit averaged over each published region |
 | `summary.csv` | For each published result: region, its solid angle, S1 share, mean fit/published ratio and the energies used for it |
 

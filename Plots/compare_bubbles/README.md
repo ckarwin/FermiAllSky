@@ -53,7 +53,7 @@ Written to this folder (each run overwrites them):
 
 | File | Contents |
 |---|---|
-| `comparison.png`, `comparison.pdf` | Both components: published spectra converted to the region, and your fit |
+| `comparison.png` | Both components: published spectra converted to the region, and your fit |
 | `summary.csv` | Conversion factor, E² dF/dE at 10 GeV and energy flux over 1–80 GeV for each component |
 | `converted_reference.csv` | Published spectra converted to the region, with the conversion factor at each energy |
 
