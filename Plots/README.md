@@ -116,9 +116,8 @@ also plotted unsmoothed.
 
 The default residual-map energy ranges are 300 MeV–1.28 GeV, 1.28–9.79 GeV
 and 9.79–100 GeV (energy bins 0–4, 5–11 and 12–19 for 300 MeV–100 GeV at 8
-bins per decade). The side-by-side residual figure scales each map to the
-99.5th percentile of |residual|, so a few extreme pixels do not wash out the
-rest.
+bins per decade). The side-by-side residual figure draws each map exactly as
+its single-map plot.
 
 The flux tables are computed exactly as `lat_binned_analysis`'s
 `calculate_flux` computes them (same sum over pixels, exposure lookup and file
