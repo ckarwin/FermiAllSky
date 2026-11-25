@@ -7,11 +7,11 @@ written at the end of run_3ML_master.py). Edit RUNS below. Makes, in
 OUTPUT_DIR:
 
 * gce_overlay.png: the GCE spectrum of each fit (best fit and 68% band)
-  over the Ajello et al. (2016) Figure 13 envelopes.
+  over the Ajello et al. (2016) Figure 13 envelopes (drawn in grey).
 * bubbles_overlay.png: the bubble spectra of each fit over Ackermann et
   al. (2017), converted to the fit ROI.
 * loopI_overlay.png: the Loop I spectrum of the all-sky fit used by each
-  fit, over the published Fermi-LAT Loop I spectra.
+  fit, over the Ackermann et al. (2015) Loop I spectra (models A, B, C).
 * residuals_overlay.png: the fractional counts residual (D - M)/M of
   each fit.
 
@@ -47,6 +47,16 @@ OUTPUT_DIR = "compare_fits_output"
 # Y range of the residual overlay.
 RESIDUAL_YLIM = (-0.1, 0.1)
 
+# Grey shades of the four Ajello et al. (2016) Figure 13 envelopes in the GCE
+# overlay (keyed by their colours in the original figure).
+GCE_ENVELOPE_GREYS = {"red": "0.80", "blue": "0.65", "green": "0.50", "black": "0.35"}
+
+# Label of the published bubble spectra.
+BUBBLES_REFERENCE_LABEL = "Ackermann+17"
+
+# Loop I results to compare with (files in compare_loopI/reference/).
+LOOPI_REFERENCES = ["igrb2015_modelA.yaml", "igrb2015_modelB.yaml", "igrb2015_modelC.yaml"]
+
 
 # ---------------------------------------------------------------------------
 
@@ -64,11 +74,7 @@ def _save(fig, outdir, name):
 
 def gce_overlay(runs, outdir):
     """GCE spectra of all fits over the Figure 13 envelopes."""
-    from compare_gce_ajello2016 import (
-        LEGEND_SIZE as GCE_LEGEND_SIZE,
-        draw_fig13_envelopes,
-        style_gce_axes,
-    )
+    from compare_gce_ajello2016 import LEGEND_SIZE as GCE_LEGEND_SIZE, style_gce_axes
 
     tables = []
     for (folder, label), colour in runs:
@@ -88,14 +94,32 @@ def gce_overlay(runs, outdir):
     roi = tuple(float(v) for v in tables[0][3].strip("()").split(","))
 
     fig, ax = plt.subplots(figsize=(10, 7), constrained_layout=True)
-    draw_fig13_envelopes(ax, tables[0][4])
+    _draw_grey_envelopes(ax, tables[0][4])
     for label, colour, table, _, _ in tables:
         energy, best, low, high = table.T
-        ax.fill_between(energy, low, high, color=colour, alpha=0.25, lw=0, zorder=9)
-        ax.plot(energy, best, color=colour, lw=2.5, label=label, zorder=10)
+        ax.fill_between(energy, low, high, color=colour, alpha=0.35, lw=0, zorder=9)
+        ax.plot(energy, best, color=colour, lw=3, label=label, zorder=10)
     style_gce_axes(ax, roi)
-    ax.legend(fontsize=GCE_LEGEND_SIZE, loc="best", frameon=False)
+    ax.set_title("")
+    ax.legend(fontsize=GCE_LEGEND_SIZE, loc="best", frameon=False, ncol=2)
     _save(fig, outdir, "gce_overlay")
+
+
+def _draw_grey_envelopes(ax, paper_scale):
+    """The Figure 13 envelopes (as in compare_gce_ajello2016), in shades of grey."""
+    from compare_gce_ajello2016 import FIG13_ENVELOPES, FIG13_FLOOR, FIG13_HATCHES, FIG13_LABELS
+
+    floor = FIG13_FLOOR * paper_scale
+    for key in ("red", "blue", "green", "black"):
+        grey = GCE_ENVELOPE_GREYS[key]
+        energy, lo, hi = FIG13_ENVELOPES[key].T
+        lo, hi = lo * paper_scale, hi * paper_scale
+        visible_lo = np.where(np.isfinite(lo), lo, floor)
+        ax.fill_between(energy, visible_lo, hi, color=grey, alpha=0.15, lw=0)
+        ax.fill_between(energy, visible_lo, hi, facecolor="none", edgecolor=grey,
+                        hatch=FIG13_HATCHES[key], linewidth=0.8, label=FIG13_LABELS[key])
+        ax.plot(energy, lo, color=grey, lw=0.8)
+        ax.plot(energy, hi, color=grey, lw=0.8)
 
 
 def bubbles_overlay(runs, outdir):
@@ -109,12 +133,15 @@ def bubbles_overlay(runs, outdir):
         return
     paper = cb.paper_spectra()
     fig, axes = cb.comparison_figure()
+    fig.suptitle("")  # no "Integrated over ..." title
     for ax, (tag, _, _, _) in zip(axes, cb.COMPONENTS):
-        cb.plot_paper(ax, paper[tag])
+        p = paper[tag]
+        ax.errorbar(p["energy"], p["sed"], yerr=p["error"], fmt="o", ms=4, color="black",
+                    capsize=2, label=BUBBLES_REFERENCE_LABEL)
         for folder, label, colour in present:
             energy, sed = cb.load_fit_spectrum(folder / f"bubbles_{tag}_flux.dat")
             ax.plot(energy, sed, color=colour, lw=2.5, label=label)
-        ax.legend(fontsize=LEGEND_SIZE, frameon=False)
+        ax.legend(fontsize=LEGEND_SIZE, frameon=False, loc="lower right")
     _save(fig, outdir, "bubbles_overlay")
 
 
@@ -133,7 +160,7 @@ def loopI_overlay(runs, outdir):
     if not present:
         print("Loop I overlay: no fit has an all-sky results folder, skipped")
         return
-    references = cl.load_references()
+    references = cl.load_references([cl.REFERENCE_DIR / name for name in LOOPI_REFERENCES])
     fig, ax = plt.subplots(figsize=(9, 7))
     cl.draw_references(ax, references)
     regions = []
@@ -153,9 +180,12 @@ def loopI_overlay(runs, outdir):
     for i, key in enumerate(regions):
         ax.plot([], [], color="0.3", ls=cl.REGION_STYLES[i % len(cl.REGION_STYLES)], lw=2,
                 label=f"fit, {key}")
-    cl.draw_leptonic_curve(ax)
     cl.style_spectrum_axes(ax)
-    ax.legend(fontsize=9, loc="lower left", frameon=False)
+    # Legend without the note on hollow points.
+    handles, labels = ax.get_legend_handles_labels()
+    keep = [i for i, text in enumerate(labels) if not text.startswith("hollow")]
+    ax.legend([handles[i] for i in keep], [labels[i] for i in keep], fontsize=9,
+              loc="lower left", frameon=False)
     _save(fig, outdir, "loopI_overlay")
 
 
