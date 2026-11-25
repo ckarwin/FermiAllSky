@@ -88,6 +88,12 @@ parameters' values span many orders of magnitude, which would make a plot of
 the covariance itself unreadable. Values near ±1 mean two parameters are
 nearly degenerate (for example the GCE index and cutoff).
 
+Its axis labels are short: the source name and the parameter name, e.g.
+`GCE_NFW xc` for `GCE_NFW.spectrum.main.Cutoff_powerlaw.xc`. If two labels
+would be the same, just enough of the path is added to tell them apart (e.g.
+`pion_decay GalpropMap.K` and `pion_decay Powerlaw.K`). The CSV files keep
+the full names.
+
 ### Settings
 
 At the top of `make_all_plots.py`:
@@ -98,6 +104,8 @@ At the top of `make_all_plots.py`:
 | `FLUX_YLIM`, `FLUX_RESID_YLIM` | `(1e-6, 1)`, `(-0.1, 0.1)` | Y ranges of the flux spectrum and its (D − M)/M panel |
 | `RESIDUAL_SMOOTH_SIGMA_DEG` | `1.0` | Gaussian smoothing of the `*_smoothed` residual maps (σ in degrees; 0 for unsmoothed maps only) |
 | `RESIDUAL_BINS` | `[[0, 5], [5, 12], [12, 20]]` | Energy-bin ranges of the residual maps |
+| `PARAMETER_LABELS` | `{}` | Correlation-matrix axis labels to replace, `{full parameter name: label}` |
+| `MAX_LABEL_LENGTH` | `28` | Longer correlation-matrix labels have their source name shortened with "…" |
 
 To change a setting for a finished fit, edit it and run
 `python make_all_plots.py Plots/<plots_subdir>`.

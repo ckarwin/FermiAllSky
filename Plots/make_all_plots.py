@@ -78,6 +78,13 @@ FLUX_RESID_YLIM = (-0.1, 0.1)
 # (see smooth_residual). 1 deg is about the LAT PSF (68%) at 1 GeV.
 RESIDUAL_SMOOTH_SIGMA_DEG = 1.0
 
+# Axis labels of the correlation matrix: by default 'source parameter'
+# (e.g. 'GCE_NFW xc'). Override any with {full parameter name: label}, e.g.
+# {"pion_decay.spectrum.main.Powerlaw.index": "pi0 index"}.
+PARAMETER_LABELS = {}
+# Longer labels have their source name shortened with '...'.
+MAX_LABEL_LENGTH = 28
+
 # Energy-bin index ranges [start, stop) of the 3d residual maps (custom_client.py):
 # 300 MeV - 1.28 GeV, 1.28 - 9.79 GeV, 9.79 - 100 GeV for 300 MeV - 100 GeV at 8 bins/decade.
 RESIDUAL_BINS = [[0, 5], [5, 12], [12, 20]]
@@ -589,10 +596,52 @@ def residual_maps(files, cubes, inputs_yaml, bins, plot_dir):
 
 
 def _short_parameter_names(names):
-    """'GCE_NFW.spectrum.main.Cutoff_powerlaw.xc' -> 'GCE_NFW xc' (full names if
-    the short ones are not unique)."""
-    short = [f"{name.split('.')[0]} {name.split('.')[-1]}" for name in names]
-    return short if len(set(short)) == len(short) else list(names)
+    """Short, unique axis labels for the correlation matrix.
+
+    'GCE_NFW.spectrum.main.Cutoff_powerlaw.xc' -> 'GCE_NFW xc'. When two
+    labels would be the same (e.g. 'pion_decay.GalpropMap.K' and
+    'pion_decay.spectrum.main.Powerlaw.K'), just enough of the path is added
+    to tell them apart ('pion_decay GalpropMap.K', 'pion_decay Powerlaw.K').
+    Names without dots (e.g. 'LAT_isodiff_Normalization') are kept as they
+    are. PARAMETER_LABELS overrides any label; labels longer than
+    MAX_LABEL_LENGTH have their source name shortened with '...'.
+    """
+    parts = [name.split(".") for name in names]
+    keep = [1] * len(names)  # number of path parts kept after the source name
+
+    def label(i):
+        p = parts[i]
+        if len(p) == 1:
+            return p[0]
+        return f"{p[0]} {'.'.join(p[len(p) - keep[i]:])}"
+
+    while True:
+        labels = [label(i) for i in range(len(names))]
+        clashing = {text for text in labels if labels.count(text) > 1}
+        grow = [i for i, text in enumerate(labels)
+                if text in clashing and keep[i] < len(parts[i]) - 1]
+        if not grow:
+            break
+        for i in grow:
+            keep[i] += 1
+
+    def shorten(text):
+        if len(text) <= MAX_LABEL_LENGTH:
+            return text
+        source, _, rest = text.partition(" ")
+        room = MAX_LABEL_LENGTH - len(rest) - 2
+        if rest and room >= 4:
+            return f"{source[:room]}\u2026 {rest}"
+        return "\u2026" + text[-(MAX_LABEL_LENGTH - 1):]
+
+    labels = [PARAMETER_LABELS.get(name, shorten(text)) for name, text in zip(names, labels)]
+    # Last guard: number any labels that are still the same.
+    seen = {}
+    unique = []
+    for text in labels:
+        seen[text] = seen.get(text, 0) + 1
+        unique.append(text if seen[text] == 1 else f"{text} ({seen[text]})")
+    return unique
 
 
 def correlation_plot(fit_results, plot_dir):
