@@ -72,13 +72,21 @@ reloads the saved 3ML results).
 | `residuals_<diff/frac/sqrt>_<i>-<j>.png`, `..._smoothed.png` | Each map, unsmoothed and smoothed |
 | `residual_maps_<i>-<j>.png`, `..._smoothed.png` | The three maps of one energy range side by side, unsmoothed and smoothed |
 | `GCE_Ajello2016_comparison.png`, `gce_spectrum.csv` | GCE spectrum vs. Ajello et al. (2016) ([Main](../Main/README.md#comparing-the-gce-with-ajello-et-al-2016)) |
-| `threeML_analysis_results.fits` | The 3ML results of the fit |
+| `correlation_matrix.png` | Correlation matrix of the free parameters after the fit |
+| `correlation_matrix.csv`, `covariance_matrix.csv` | The numbers behind it, with full parameter names |
+| `threeML_analysis_results.fits` | The 3ML results of the fit (used to redo the correlation matrix and GCE plots) |
 | `bubbles_comparison.png`, `bubbles_*.csv` | Bubble spectra vs. Ackermann et al. (2017) ([`compare_bubbles/`](compare_bubbles/README.md)) |
 | `loopI_comparison.png`, `loopI_*.csv` | Loop I of the all-sky fit vs. published spectra ([`compare_loopI/`](compare_loopI/README.md)) |
 | `run_info.json` | Inputs of the fit, used to redo the plots and by `compare_fits.py` |
 | `make_all_plots.log` | Which plots were made, and the errors of any that failed |
 
 The GCE and bubble files are made only when the fit includes those components.
+
+The correlation matrix is the fit's covariance matrix divided by the product
+of the two parameters' errors, so every entry is between −1 and +1. The
+parameters' values span many orders of magnitude, which would make a plot of
+the covariance itself unreadable. Values near ±1 mean two parameters are
+nearly degenerate (for example the GCE index and cutoff).
 
 ### Settings
 
