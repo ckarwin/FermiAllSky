@@ -7,7 +7,7 @@ written at the end of run_3ML_master.py). Edit RUNS below. Makes, in
 OUTPUT_DIR:
 
 * gce_overlay.png: the GCE spectrum of each fit (best fit and 68% band)
-  over the Ajello et al. (2016) Figure 13 envelopes (drawn in grey).
+  over the Ajello et al. (2016) Figure 13 envelopes.
 * bubbles_overlay.png: the bubble spectra of each fit over Ackermann et
   al. (2017), converted to the fit ROI.
 * loopI_overlay.png: the Loop I spectrum of the all-sky fit used by each
@@ -47,12 +47,16 @@ OUTPUT_DIR = "compare_fits_output"
 # Y range of the residual overlay.
 RESIDUAL_YLIM = (-0.1, 0.1)
 
-# Grey shades of the four Ajello et al. (2016) Figure 13 envelopes in the GCE
-# overlay (keyed by their colours in the original figure).
-GCE_ENVELOPE_GREYS = {"red": "0.80", "blue": "0.65", "green": "0.50", "black": "0.35"}
+# GCE overlay: opacity of the Ajello et al. (2016) envelope hatching (0-1)
+# and of the fits' 68% bands.
+GCE_ENVELOPE_ALPHA = 0.45
+GCE_BAND_ALPHA = 0.5
 
 # Label of the published bubble spectra.
 BUBBLES_REFERENCE_LABEL = "Ackermann+17"
+
+# Y range of the Loop I overlay.
+LOOPI_YLIM = (1e-6, 1e-3)
 
 # Loop I results to compare with (files in compare_loopI/reference/).
 LOOPI_REFERENCES = ["igrb2015_modelA.yaml", "igrb2015_modelB.yaml", "igrb2015_modelC.yaml"]
@@ -94,10 +98,10 @@ def gce_overlay(runs, outdir):
     roi = tuple(float(v) for v in tables[0][3].strip("()").split(","))
 
     fig, ax = plt.subplots(figsize=(10, 7), constrained_layout=True)
-    _draw_grey_envelopes(ax, tables[0][4])
+    _draw_envelopes(ax, tables[0][4])
     for label, colour, table, _, _ in tables:
         energy, best, low, high = table.T
-        ax.fill_between(energy, low, high, color=colour, alpha=0.35, lw=0, zorder=9)
+        ax.fill_between(energy, low, high, color=colour, alpha=GCE_BAND_ALPHA, lw=0, zorder=9)
         ax.plot(energy, best, color=colour, lw=3, label=label, zorder=10)
     style_gce_axes(ax, roi)
     ax.set_title("")
@@ -105,21 +109,23 @@ def gce_overlay(runs, outdir):
     _save(fig, outdir, "gce_overlay")
 
 
-def _draw_grey_envelopes(ax, paper_scale):
-    """The Figure 13 envelopes (as in compare_gce_ajello2016), in shades of grey."""
+def _draw_envelopes(ax, paper_scale):
+    """The Figure 13 envelopes as in compare_gce_ajello2016, with fainter
+    hatching (GCE_ENVELOPE_ALPHA) so the fits stand out."""
     from compare_gce_ajello2016 import FIG13_ENVELOPES, FIG13_FLOOR, FIG13_HATCHES, FIG13_LABELS
+    from matplotlib.colors import to_rgba
 
     floor = FIG13_FLOOR * paper_scale
-    for key in ("red", "blue", "green", "black"):
-        grey = GCE_ENVELOPE_GREYS[key]
-        energy, lo, hi = FIG13_ENVELOPES[key].T
+    for color in ("red", "blue", "green", "black"):
+        energy, lo, hi = FIG13_ENVELOPES[color].T
         lo, hi = lo * paper_scale, hi * paper_scale
         visible_lo = np.where(np.isfinite(lo), lo, floor)
-        ax.fill_between(energy, visible_lo, hi, color=grey, alpha=0.15, lw=0)
-        ax.fill_between(energy, visible_lo, hi, facecolor="none", edgecolor=grey,
-                        hatch=FIG13_HATCHES[key], linewidth=0.8, label=FIG13_LABELS[key])
-        ax.plot(energy, lo, color=grey, lw=0.8)
-        ax.plot(energy, hi, color=grey, lw=0.8)
+        ax.fill_between(energy, visible_lo, hi, color=color, alpha=0.08, lw=0)
+        ax.fill_between(energy, visible_lo, hi, facecolor="none",
+                        edgecolor=to_rgba(color, GCE_ENVELOPE_ALPHA),
+                        hatch=FIG13_HATCHES[color], linewidth=1, label=FIG13_LABELS[color])
+        ax.plot(energy, lo, color=color, lw=0.8, alpha=GCE_ENVELOPE_ALPHA)
+        ax.plot(energy, hi, color=color, lw=0.8, alpha=GCE_ENVELOPE_ALPHA)
 
 
 def bubbles_overlay(runs, outdir):
@@ -177,10 +183,8 @@ def loopI_overlay(runs, outdir):
             ls = cl.REGION_STYLES[regions.index(key) % len(cl.REGION_STYLES)]
             ax.plot(energy, c["total"], color=colour, ls=ls, lw=2)
         ax.plot([], [], color=colour, lw=2, label=label)
-    for i, key in enumerate(regions):
-        ax.plot([], [], color="0.3", ls=cl.REGION_STYLES[i % len(cl.REGION_STYLES)], lw=2,
-                label=f"fit, {key}")
     cl.style_spectrum_axes(ax)
+    ax.set_ylim(*LOOPI_YLIM)
     # Legend without the note on hollow points.
     handles, labels = ax.get_legend_handles_labels()
     keep = [i for i, text in enumerate(labels) if not text.startswith("hollow")]
