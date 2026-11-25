@@ -29,9 +29,12 @@ residual_maps_<i>-<j>[_smoothed].png
                                    ranges i..j-1, each alone and all three in
                                    one figure; unsmoothed and smoothed
                                    (*_smoothed.fits: the smoothed maps)
+correlation_matrix.png             correlation matrix of the free parameters
+correlation_matrix.csv,            (from the fit's covariance matrix), and the
+covariance_matrix.csv              numbers behind it
+threeML_analysis_results.fits      the 3ML results (to redo these plots)
 GCE_Ajello2016_comparison.png      Main/compare_gce_ajello2016.py
 gce_spectrum.csv                   the fitted GCE curve of that plot
-threeML_analysis_results.fits      the 3ML results (to redo the GCE plot)
 bubbles_comparison.png, ...        compare_bubbles/compare_bubbles.py
 loopI_comparison.png, ...          compare_loopI/compare_loopI.py (all-sky fit)
 run_info.json                      inputs of this run (for compare_fits.py)
@@ -74,6 +77,13 @@ FLUX_RESID_YLIM = (-0.1, 0.1)
 # residual, so (data - model)/sqrt(model) stays a significance per kernel
 # (see smooth_residual). 1 deg is about the LAT PSF (68%) at 1 GeV.
 RESIDUAL_SMOOTH_SIGMA_DEG = 1.0
+
+# Axis labels of the correlation matrix: by default 'source parameter'
+# (e.g. 'GCE_NFW xc'). Override any with {full parameter name: label}, e.g.
+# {"pion_decay.spectrum.main.Powerlaw.index": "pi0 index"}.
+PARAMETER_LABELS = {}
+# Longer labels have their source name shortened with '...'.
+MAX_LABEL_LENGTH = 28
 
 # Energy-bin index ranges [start, stop) of the 3d residual maps (custom_client.py):
 # 300 MeV - 1.28 GeV, 1.28 - 9.79 GeV, 9.79 - 100 GeV for 300 MeV - 100 GeV at 8 bins/decade.
@@ -585,6 +595,99 @@ def residual_maps(files, cubes, inputs_yaml, bins, plot_dir):
         plt.close(fig)
 
 
+def _short_parameter_names(names):
+    """Short, unique axis labels for the correlation matrix.
+
+    'GCE_NFW.spectrum.main.Cutoff_powerlaw.xc' -> 'GCE_NFW xc'. When two
+    labels would be the same (e.g. 'pion_decay.GalpropMap.K' and
+    'pion_decay.spectrum.main.Powerlaw.K'), just enough of the path is added
+    to tell them apart ('pion_decay GalpropMap.K', 'pion_decay Powerlaw.K').
+    Names without dots (e.g. 'LAT_isodiff_Normalization') are kept as they
+    are. PARAMETER_LABELS overrides any label; labels longer than
+    MAX_LABEL_LENGTH have their source name shortened with '...'.
+    """
+    parts = [name.split(".") for name in names]
+    keep = [1] * len(names)  # number of path parts kept after the source name
+
+    def label(i):
+        p = parts[i]
+        if len(p) == 1:
+            return p[0]
+        return f"{p[0]} {'.'.join(p[len(p) - keep[i]:])}"
+
+    while True:
+        labels = [label(i) for i in range(len(names))]
+        clashing = {text for text in labels if labels.count(text) > 1}
+        grow = [i for i, text in enumerate(labels)
+                if text in clashing and keep[i] < len(parts[i]) - 1]
+        if not grow:
+            break
+        for i in grow:
+            keep[i] += 1
+
+    def shorten(text):
+        if len(text) <= MAX_LABEL_LENGTH:
+            return text
+        source, _, rest = text.partition(" ")
+        room = MAX_LABEL_LENGTH - len(rest) - 2
+        if rest and room >= 4:
+            return f"{source[:room]}\u2026 {rest}"
+        return "\u2026" + text[-(MAX_LABEL_LENGTH - 1):]
+
+    labels = [PARAMETER_LABELS.get(name, shorten(text)) for name, text in zip(names, labels)]
+    # Last guard: number any labels that are still the same.
+    seen = {}
+    unique = []
+    for text in labels:
+        seen[text] = seen.get(text, 0) + 1
+        unique.append(text if seen[text] == 1 else f"{text} ({seen[text]})")
+    return unique
+
+
+def correlation_plot(fit_results, plot_dir):
+    """Correlation matrix of the free parameters after the fit.
+
+    Correlation = covariance / (error_i * error_j), from the covariance matrix
+    of the fit (3ML's MLE results). The parameters span many orders of
+    magnitude, so the covariance itself is written to covariance_matrix.csv
+    and the plot shows the correlation, -1 to +1.
+    """
+    import matplotlib.pyplot as plt
+    import pandas as pd
+
+    names = list(fit_results.optimized_model.free_parameters.keys())
+    covariance = np.asarray(fit_results.covariance_matrix, dtype=float)
+    correlation = np.asarray(fit_results.get_correlation_matrix(), dtype=float)
+    if covariance.shape != (len(names), len(names)):
+        raise ValueError(f"covariance matrix is {covariance.shape}, expected "
+                         f"{len(names)} x {len(names)} (one row per free parameter)")
+    for table, filename in ((covariance, "covariance_matrix.csv"),
+                            (correlation, "correlation_matrix.csv")):
+        pd.DataFrame(table, index=names, columns=names).to_csv(
+            Path(plot_dir) / filename, sep="\t", float_format="%.6e")
+
+    labels = _short_parameter_names(names)
+    n = len(names)
+    size = max(6.0, 0.55 * n + 3.0)
+    fig, ax = plt.subplots(figsize=(size + 1.5, size))
+    image = ax.imshow(correlation, cmap="RdBu_r", vmin=-1, vmax=1, interpolation="none")
+    for i, j in product(range(n), range(n)):
+        value = correlation[i, j]
+        if np.isfinite(value):
+            ax.text(j, i, f"{value:.2f}", ha="center", va="center", fontsize=8,
+                    color="white" if abs(value) > 0.6 else "black")
+    ax.set_xticks(range(n))
+    ax.set_yticks(range(n))
+    ax.set_xticklabels(labels, rotation=45, ha="right", fontsize=11)
+    ax.set_yticklabels(labels, fontsize=11)
+    ax.tick_params(length=0)
+    colourbar = fig.colorbar(image, ax=ax, fraction=0.046, pad=0.03)
+    colourbar.set_label("Correlation coefficient", fontsize=14)
+    colourbar.ax.tick_params(labelsize=12)
+    fig.savefig(Path(plot_dir) / "correlation_matrix.png", bbox_inches="tight")
+    plt.close(fig)
+
+
 def gce_plot(fit_results, nfw_file, plot_dir):
     """GCE_Ajello2016_comparison.png and gce_spectrum.csv."""
     sys.path.insert(0, str(REPO / "Main"))
@@ -652,8 +755,9 @@ def make_all_plots(
     include_dm, include_bubbles : bool
         As in run_3ML_master.py; the GCE and bubble plots need them.
     fit_results : threeML results, optional
-        ``jl.results``, for the GCE comparison; saved as
-        threeML_analysis_results.fits so the plot can be made again later.
+        ``jl.results``, for the correlation matrix and the GCE comparison;
+        saved as threeML_analysis_results.fits so the plots can be made again
+        later.
     nfw_file : str or Path, optional
         NFW template of the fit (GCE comparison).
     residual_bins : list of [start, stop]
@@ -711,10 +815,13 @@ def _make_all_plots(plot_dir, savename, fermipy_outdir, run_output, allsky_resul
                  info["residual_bins"], plot_dir)
         _close_all()
 
+    if fit_results is not None:
+        results_file = plot_dir / "threeML_analysis_results.fits"
+        log.step("save 3ML results", fit_results.write_to, str(results_file), overwrite=True)
+        log.step("correlation matrix", correlation_plot, fit_results, plot_dir)
+    else:
+        log.lines.append("skipped correlation matrix (needs fit_results)")
     if include_dm:
-        if fit_results is not None:
-            results_file = plot_dir / "threeML_analysis_results.fits"
-            log.step("save 3ML results", fit_results.write_to, str(results_file), overwrite=True)
         if fit_results is not None and nfw_file is not None:
             log.step("GCE comparison", gce_plot, fit_results, nfw_file, plot_dir)
         else:
@@ -738,13 +845,14 @@ def _from_run_info(plot_dir):
     info = json.loads((plot_dir / "run_info.json").read_text())
     fit_results = None
     results_file = plot_dir / "threeML_analysis_results.fits"
-    if info["include_dm"] and results_file.is_file():
+    if results_file.is_file():
         try:
             from threeML import load_analysis_results
 
             fit_results = load_analysis_results(str(results_file))
         except Exception as error:  # e.g. threeML not installed in this environment
-            print(f"Cannot load {results_file} ({error}); the GCE comparison is skipped.")
+            print(f"Cannot load {results_file} ({error}); the correlation matrix and "
+                  "GCE comparison are skipped.")
     return make_all_plots(
         plot_dir,
         info["savename"],

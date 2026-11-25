@@ -72,13 +72,27 @@ reloads the saved 3ML results).
 | `residuals_<diff/frac/sqrt>_<i>-<j>.png`, `..._smoothed.png` | Each map, unsmoothed and smoothed |
 | `residual_maps_<i>-<j>.png`, `..._smoothed.png` | The three maps of one energy range side by side, unsmoothed and smoothed |
 | `GCE_Ajello2016_comparison.png`, `gce_spectrum.csv` | GCE spectrum vs. Ajello et al. (2016) ([Main](../Main/README.md#comparing-the-gce-with-ajello-et-al-2016)) |
-| `threeML_analysis_results.fits` | The 3ML results of the fit |
+| `correlation_matrix.png` | Correlation matrix of the free parameters after the fit |
+| `correlation_matrix.csv`, `covariance_matrix.csv` | The numbers behind it, with full parameter names |
+| `threeML_analysis_results.fits` | The 3ML results of the fit (used to redo the correlation matrix and GCE plots) |
 | `bubbles_comparison.png`, `bubbles_*.csv` | Bubble spectra vs. Ackermann et al. (2017) ([`compare_bubbles/`](compare_bubbles/README.md)) |
 | `loopI_comparison.png`, `loopI_*.csv` | Loop I of the all-sky fit vs. published spectra ([`compare_loopI/`](compare_loopI/README.md)) |
 | `run_info.json` | Inputs of the fit, used to redo the plots and by `compare_fits.py` |
 | `make_all_plots.log` | Which plots were made, and the errors of any that failed |
 
 The GCE and bubble files are made only when the fit includes those components.
+
+The correlation matrix is the fit's covariance matrix divided by the product
+of the two parameters' errors, so every entry is between −1 and +1. The
+parameters' values span many orders of magnitude, which would make a plot of
+the covariance itself unreadable. Values near ±1 mean two parameters are
+nearly degenerate (for example the GCE index and cutoff).
+
+Its axis labels are short: the source name and the parameter name, e.g.
+`GCE_NFW xc` for `GCE_NFW.spectrum.main.Cutoff_powerlaw.xc`. If two labels
+would be the same, just enough of the path is added to tell them apart (e.g.
+`pion_decay GalpropMap.K` and `pion_decay Powerlaw.K`). The CSV files keep
+the full names.
 
 ### Settings
 
@@ -90,6 +104,8 @@ At the top of `make_all_plots.py`:
 | `FLUX_YLIM`, `FLUX_RESID_YLIM` | `(1e-6, 1)`, `(-0.1, 0.1)` | Y ranges of the flux spectrum and its (D − M)/M panel |
 | `RESIDUAL_SMOOTH_SIGMA_DEG` | `1.0` | Gaussian smoothing of the `*_smoothed` residual maps (σ in degrees; 0 for unsmoothed maps only) |
 | `RESIDUAL_BINS` | `[[0, 5], [5, 12], [12, 20]]` | Energy-bin ranges of the residual maps |
+| `PARAMETER_LABELS` | `{}` | Correlation-matrix axis labels to replace, `{full parameter name: label}` |
+| `MAX_LABEL_LENGTH` | `28` | Longer correlation-matrix labels have their source name shortened with "…" |
 
 To change a setting for a finished fit, edit it and run
 `python make_all_plots.py Plots/<plots_subdir>`.
