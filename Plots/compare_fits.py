@@ -22,7 +22,9 @@ import json
 import sys
 from pathlib import Path
 
+import matplotlib.patheffects as pe
 import matplotlib.pyplot as plt
+from matplotlib.lines import Line2D
 import numpy as np
 
 PLOTS_DIR = Path(__file__).resolve().parent
@@ -50,7 +52,10 @@ RESIDUAL_YLIM = (-0.1, 0.1)
 # GCE overlay: opacity of the Ajello et al. (2016) envelope hatching (0-1)
 # and of the fits' 68% bands.
 GCE_ENVELOPE_ALPHA = 0.45
-GCE_BAND_ALPHA = 0.5
+GCE_BAND_ALPHA = 0.2
+
+# Marker of each fit (in the order of RUNS), drawn on its curve.
+RUN_MARKERS = ["o", "s", "^", "D", "v", "P", "X", "<", ">", "*"]
 
 # Label of the published bubble spectra.
 BUBBLES_REFERENCE_LABEL = "Ackermann+17"
@@ -59,7 +64,12 @@ BUBBLES_REFERENCE_LABEL = "Ackermann+17"
 LOOPI_YLIM = (1e-6, 1e-3)
 
 # Loop I results to compare with (files in compare_loopI/reference/).
-LOOPI_REFERENCES = ["igrb2015_modelA.yaml", "igrb2015_modelB.yaml", "igrb2015_modelC.yaml"]
+# and their legend labels.
+LOOPI_REFERENCES = {
+    "igrb2015_modelA.yaml": "Ackermann+15, model A",
+    "igrb2015_modelB.yaml": "Ackermann+15, model B",
+    "igrb2015_modelC.yaml": "Ackermann+15, model C",
+}
 
 
 # ---------------------------------------------------------------------------
@@ -99,13 +109,34 @@ def gce_overlay(runs, outdir):
 
     fig, ax = plt.subplots(figsize=(10, 7), constrained_layout=True)
     _draw_envelopes(ax, tables[0][4])
-    for label, colour, table, _, _ in tables:
+    # Each fit: 68% band, then its best fit as a line with markers, outlined
+    # in white so it stays visible over the hatching. Markers sit at the
+    # same energies for all fits, shifted a little per fit so they do not
+    # hide each other.
+    fit_handles = []
+    for i, (label, colour, table, _, _) in enumerate(tables):
         energy, best, low, high = table.T
         ax.fill_between(energy, low, high, color=colour, alpha=GCE_BAND_ALPHA, lw=0, zorder=9)
-        ax.plot(energy, best, color=colour, lw=3, label=label, zorder=10)
+        shift = 0.25 * i / len(tables)
+        marks = np.unique(np.searchsorted(energy, 10 ** np.arange(3.05 + shift, 5, 0.25)))
+        marks = marks[marks < len(energy)]
+        marker = RUN_MARKERS[i % len(RUN_MARKERS)]
+        ax.plot(energy, best, color=colour, lw=2.5, zorder=10 + i,
+                path_effects=[pe.Stroke(linewidth=5, foreground="white"), pe.Normal()])
+        ax.plot(energy[marks], best[marks], ls="", marker=marker, ms=8, color=colour,
+                mec="white", mew=1.2, zorder=10 + i)
+        fit_handles.append(Line2D([], [], color=colour, lw=2.5, marker=marker, ms=8,
+                                  mec="white", mew=1.2, label=label))
     style_gce_axes(ax, roi)
     ax.set_title("")
-    ax.legend(fontsize=GCE_LEGEND_SIZE, loc="best", frameon=False, ncol=2)
+    # Two legends: the published envelopes, and the fits.
+    paper_handles = ax.get_legend_handles_labels()[0]
+    paper_legend = ax.legend(handles=paper_handles, fontsize=GCE_LEGEND_SIZE, loc="upper right",
+                             frameon=False, title="Ajello et al. 2016",
+                             title_fontsize=GCE_LEGEND_SIZE)
+    ax.add_artist(paper_legend)
+    ax.legend(handles=fit_handles, fontsize=GCE_LEGEND_SIZE, loc="lower left", frameon=False,
+              ncol=2 if len(fit_handles) > 4 else 1)
     _save(fig, outdir, "gce_overlay")
 
 
@@ -167,6 +198,8 @@ def loopI_overlay(runs, outdir):
         print("Loop I overlay: no fit has an all-sky results folder, skipped")
         return
     references = cl.load_references([cl.REFERENCE_DIR / name for name in LOOPI_REFERENCES])
+    for ref, label in zip(references, LOOPI_REFERENCES.values()):
+        ref["label"] = label
     fig, ax = plt.subplots(figsize=(9, 7))
     cl.draw_references(ax, references)
     regions = []
